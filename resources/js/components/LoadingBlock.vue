@@ -1,0 +1,5 @@
+<template>
+    <div class="text-center text-muted py-5">
+        <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+    </div>
+</template>
