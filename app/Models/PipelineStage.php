@@ -1,19 +1,28 @@
-<?php // app/Models/PipelineStage.php
+<?php
+
+declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\StageType;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PipelineStage extends Model
 {
-    protected $fillable = ['pipeline_id', 'name', 'position', 'probability', 'type', 'color'];
+    use HasUuids;
+
+    protected $fillable = [
+        'pipeline_id', 'name', 'slug', 'position', 'color', 'probability', 'is_won', 'is_lost',
+    ];
 
     protected function casts(): array
     {
-        return ['type' => StageType::class];
+        return [
+            'position' => 'integer', 'probability' => 'integer',
+            'is_won' => 'boolean', 'is_lost' => 'boolean',
+        ];
     }
 
     public function pipeline(): BelongsTo
@@ -23,11 +32,6 @@ class PipelineStage extends Model
 
     public function deals(): HasMany
     {
-        return $this->hasMany(Deal::class, 'stage_id')->orderBy('position');
-    }
-
-    public function isClosed(): bool
-    {
-        return $this->type !== StageType::Open;
+        return $this->hasMany(Deal::class, 'pipeline_stage_id');
     }
 }

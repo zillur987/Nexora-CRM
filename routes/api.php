@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\PipelineController;
+use App\Http\Controllers\Api\V1\PipelineStageController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DealController;
+use App\Http\Controllers\Api\V1\LeadController;
+use App\Http\Controllers\Api\V1\UserOptionsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -22,6 +26,24 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('contacts', ContactController::class);
 
         Route::get('deals/pipeline', [DealController::class, 'pipeline']);
+        Route::patch('deals/{deal}/stage', [DealController::class, 'changeStage']);
+        Route::apiResource('deals', DealController::class);
+
+        Route::get('users/options', UserOptionsController::class);
+        Route::get('leads/summary', [LeadController::class, 'summary']);
+        Route::patch('leads/{lead}/status', [LeadController::class, 'changeStatus']);
+        Route::post('leads/{lead}/convert', [LeadController::class, 'convert']);
+        Route::apiResource('leads', LeadController::class);
+
+        Route::get('pipelines/{pipeline}/board', [PipelineController::class, 'board']);
+        Route::post('pipelines/{pipeline}/stages/reorder', [PipelineStageController::class, 'reorder']);
+        Route::post('pipelines/{pipeline}/stages', [PipelineStageController::class, 'store']);
+        Route::patch('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'update']);
+        Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
+        Route::apiResource('pipelines', PipelineController::class);
+
+        Route::get('deals/pipeline', [DealController::class, 'pipeline']);
+        Route::patch('deals/{deal}/pipeline-stage', [DealController::class, 'movePipelineStage']);
         Route::patch('deals/{deal}/stage', [DealController::class, 'changeStage']);
         Route::apiResource('deals', DealController::class);
     });

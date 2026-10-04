@@ -16,6 +16,11 @@ const routes = [
         children: [
             { path: '', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
 
+            { path: 'leads', name: 'leads.index', component: () => import('@/views/leads/LeadListView.vue') },
+            { path: 'leads/new', name: 'leads.create', component: () => import('@/views/leads/LeadFormView.vue') },
+            { path: 'leads/:id', name: 'leads.show', component: () => import('@/views/leads/LeadDetailView.vue'), props: true },
+            { path: 'leads/:id/edit', name: 'leads.edit', component: () => import('@/views/leads/LeadFormView.vue'), props: true },
+
             { path: 'contacts', name: 'contacts.index', component: () => import('@/views/contacts/ContactListView.vue') },
             { path: 'contacts/new', name: 'contacts.create', component: () => import('@/views/contacts/ContactFormView.vue') },
             { path: 'contacts/:id', name: 'contacts.show', component: () => import('@/views/contacts/ContactDetailView.vue'), props: true },
@@ -25,6 +30,11 @@ const routes = [
             { path: 'deals/new', name: 'deals.create', component: () => import('@/views/deals/DealFormView.vue') },
             { path: 'deals/:id', name: 'deals.show', component: () => import('@/views/deals/DealDetailView.vue'), props: true },
             { path: 'deals/:id/edit', name: 'deals.edit', component: () => import('@/views/deals/DealFormView.vue'), props: true },
+            
+            { path: 'pipelines', name: 'pipelines.index', component: () => import('@/views/pipelines/PipelineListView.vue') },
+            { path: 'pipelines/new', name: 'pipelines.create', component: () => import('@/views/pipelines/PipelineFormView.vue') },
+            { path: 'pipelines/:id/edit', name: 'pipelines.edit', component: () => import('@/views/pipelines/PipelineFormView.vue'), props: true },
+            { path: 'pipelines/:id/board', name: 'pipelines.board', component: () => import('@/views/pipelines/PipelineBoardView.vue'), props: true },
         ],
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },

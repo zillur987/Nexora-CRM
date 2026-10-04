@@ -1,21 +1,22 @@
-<?php // app/Models/Pipeline.php
+<?php
+
+declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Pipeline extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasUuids;
 
-    protected $fillable = ['name', 'is_default'];
+    protected $fillable = ['name', 'slug', 'description', 'is_default', 'is_active'];
 
     protected function casts(): array
     {
-        return ['is_default' => 'boolean'];
+        return ['is_default' => 'boolean', 'is_active' => 'boolean'];
     }
 
     public function stages(): HasMany

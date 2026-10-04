@@ -18,6 +18,7 @@
         "vue-tsc": "^3.3.11"
     },
     "dependencies": {
+        "bootstrap-icons": "^1.13.1",
         "pinia": "^4.0.3",
         "vue": "^3.5.43",
         "vue-draggable-plus": "^0.6.1",
