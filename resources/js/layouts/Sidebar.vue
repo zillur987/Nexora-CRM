@@ -5,7 +5,8 @@ import { RouterLink, useRoute } from 'vue-router'
 const props = defineProps({
   collapsed: Boolean,
   mobileOpen: Boolean,
-  user: { type: Object, default: () => ({ name: 'Admin User', role: 'Administrator' }) },
+  // `auth.user` is null until the session loads, so every access below is null-safe.
+  user: { type: Object, default: null },
 })
 const emit = defineEmits(['toggle', 'close'])
 
@@ -23,12 +24,10 @@ const groups = [
       { name: 'Deals', icon: 'bi-briefcase', to: '/deals', badge: 3 },
     ],
   },
-  { 
-    label: 'Pipelines', 
-    items: [
-      { name: 'Pipelines', icon: 'bi-kanban-fill', to: '/pipelines' },
-    ],
-   },
+  {
+    label: 'Pipelines',
+    items: [{ name: 'Pipelines', icon: 'bi-kanban-fill', to: '/pipelines' }],
+  },
   {
     label: 'Work',
     items: [
@@ -40,9 +39,20 @@ const groups = [
 ]
 
 const route = useRoute()
-const isActive = (to) => (to === '/' ? route.path === '/' : route.path.startsWith(to))
+
+// "/leads" matches "/leads" and "/leads/create", but not "/leads-archive".
+const isActive = (to) => (to === '/' ? route.path === '/' : route.path === to || route.path.startsWith(`${to}/`))
+
+const name = computed(() => props.user?.name || 'User')
+const role = computed(() => (typeof props.user?.role === 'string' ? props.user.role : ''))
 const initials = computed(() =>
-  props.user.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+  name.value
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase(),
 )
 </script>
 
@@ -51,7 +61,12 @@ const initials = computed(() =>
     <div class="crm-brand">
       <span class="crm-brand-mark"><i class="bi bi-people-fill"></i></span>
       <span class="crm-brand-name">CRM</span>
-      <button class="crm-icon-btn crm-collapse-btn" @click="emit('toggle')" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+      <button
+        type="button"
+        class="crm-icon-btn crm-collapse-btn"
+        :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        @click="emit('toggle')"
+      >
         <i class="bi" :class="collapsed ? 'bi-chevron-bar-right' : 'bi-chevron-bar-left'"></i>
       </button>
     </div>
@@ -65,6 +80,7 @@ const initials = computed(() =>
           :to="item.to"
           class="crm-nav-link"
           :class="{ active: isActive(item.to) }"
+          :aria-current="isActive(item.to) ? 'page' : null"
           :title="collapsed ? item.name : null"
           @click="emit('close')"
         >
@@ -76,14 +92,21 @@ const initials = computed(() =>
     </nav>
 
     <div class="crm-sidebar-foot">
-      <RouterLink to="/settings" class="crm-nav-link" :class="{ active: isActive('/settings') }">
+      <RouterLink
+        to="/settings"
+        class="crm-nav-link"
+        :class="{ active: isActive('/settings') }"
+        :aria-current="isActive('/settings') ? 'page' : null"
+        :title="collapsed ? 'Settings' : null"
+        @click="emit('close')"
+      >
         <i class="bi bi-gear"></i><span class="crm-nav-text">Settings</span>
       </RouterLink>
       <div class="crm-user">
         <span class="crm-avatar">{{ initials }}</span>
         <div class="crm-user-meta">
-          <strong>{{ user.name }}</strong>
-          <small>{{ user.role }}</small>
+          <strong>{{ name }}</strong>
+          <small v-if="role">{{ role }}</small>
         </div>
       </div>
     </div>
