@@ -24,12 +24,16 @@ class ContactController extends Controller
         return ContactResource::collection($this->service->list($request->validated()));
     }
 
-    /** Lightweight id/name list for <select> dropdowns. */
+    /** Contact count per stage, for the list tabs. */
+    public function summary(): JsonResponse
+    {
+        return response()->json(['data' => $this->service->summary()]);
+    }
+
+    /** Lightweight id/name list for "contact" dropdowns (e.g. the deal form). */
     public function options(): JsonResponse
     {
-        return response()->json(['data' => $this->service->options()
-            ->map(fn (Contact $c) => ['id' => $c->id, 'name' => $c->full_name, 'company' => $c->company])
-            ->values()]);
+        return response()->json(['data' => $this->service->options()]);
     }
 
     public function store(StoreContactRequest $request): JsonResponse
@@ -41,7 +45,9 @@ class ContactController extends Controller
 
     public function show(Contact $contact): ContactResource
     {
-        return ContactResource::make($contact->load('deals'));
+        return ContactResource::make(
+            $contact->load(['owner:id,name', 'company:id,name', 'industry:id,name', 'source:id,name', 'stage:id,name']),
+        );
     }
 
     public function update(UpdateContactRequest $request, Contact $contact): ContactResource

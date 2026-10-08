@@ -1,1185 +1,660 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-
-import { contactsApi } from '@/api/contacts';
-import { CONTACT_STATUSES } from '@/constants';
+import { companiesApi, companyLookupsApi } from '@/api/companies';
+import { contactLookupsApi, contactsApi } from '@/api/contacts';
 import { useToastStore } from '@/stores/toast';
 import { parseApiError } from '@/utils/errors';
-
 import FormField from '@/components/FormField.vue';
 import LoadingBlock from '@/components/LoadingBlock.vue';
+import LookupSelect from '@/components/LookupSelect.vue';
 
 const props = defineProps({
-    id: {
-        type: String,
-        default: null,
-    },
+    /** null = create a new contact, otherwise edit this contact. */
+    contactId: { type: [String, Number], default: null },
+    owners: { type: Array, default: () => [] },
+    industries: { type: Array, default: () => [] },
+    sources: { type: Array, default: () => [] },
+    stages: { type: Array, default: () => [] },
 });
+const emit = defineEmits(['saved', 'cancel', 'lookup-created']);
 
-const router = useRouter();
 const toast = useToastStore();
+const router = useRouter();
 
-const isEdit = computed(() => Boolean(props.id));
+/* -------------------------------------------------------------------------- */
+/* Field configuration (templates render from these, so a new field is one line) */
+/* -------------------------------------------------------------------------- */
 
-/*
-|--------------------------------------------------------------------------
-| Form
-|--------------------------------------------------------------------------
-*/
+const STEPS = [
+    { key: 'basic', title: 'Basic information' },
+    { key: 'details', title: 'Address & social' },
+];
 
-const form = reactive({
-    // Personal information
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
-    mobile: '',
-    job_title: '',
-    department: '',
-    date_of_birth: '',
+const ADDRESS_FIELDS = [
+    { part: 'address', label: 'Address', col: 'col-12', placeholder: 'House 12, Road 5, Banani' },
+    { part: 'city', label: 'City', col: 'col-md-6', placeholder: 'Dhaka' },
+    { part: 'state', label: 'State / Province', col: 'col-md-6', placeholder: 'Dhaka Division' },
+    { part: 'zip', label: 'Zip code', col: 'col-md-6', placeholder: '1212' },
+    { part: 'country', label: 'Country', col: 'col-md-6', placeholder: 'Bangladesh' },
+];
+const ADDRESS_PARTS = ADDRESS_FIELDS.map((f) => f.part);
+const ADDRESS_GROUPS = [
+    { key: 'present', title: 'Present address', icon: 'bi-house' },
+    { key: 'permanent', title: 'Permanent address', icon: 'bi-geo-alt' },
+];
 
-    // Company
-    company: '',
-    website: '',
-    industry: '',
-    company_size: '',
+const SOCIAL_FIELDS = [
+    { key: 'linkedin', label: 'LinkedIn', icon: 'bi-linkedin', placeholder: 'linkedin.com/in/jane-doe' },
+    { key: 'twitter', label: 'Twitter / X', icon: 'bi-twitter-x', placeholder: 'x.com/janedoe' },
+];
 
-    // Address
-    address: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
+const addressKey = (group, part) => `${group}_${part}`;
 
-    // CRM
-    status: 'lead',
-    contact_type: 'individual',
-    source: '',
-    owner_id: null,
+// Which fields live on which step (used for validation and to jump to the step with a server error).
+const STEP_FIELDS = [
+    [
+        'first_name', 'last_name', 'owner_id', 'email', 'birthday', 'company_id', 'job_title', 'phone',
+        'department', 'industry_id', 'contact_source_id', 'contact_stage_id',
+    ],
+    [
+        ...ADDRESS_GROUPS.flatMap((g) => ADDRESS_PARTS.map((part) => addressKey(g.key, part))),
+        ...SOCIAL_FIELDS.map((f) => f.key),
+        'description',
+    ],
+];
+const FIELDS = STEP_FIELDS.flat();
+const REQUIRED_FIELDS = ['first_name', 'last_name'];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // Additional
-    notes: '',
-});
+const blank = () => Object.fromEntries(FIELDS.map((f) => [f, '']));
+const fromContact = (contact) => Object.fromEntries(FIELDS.map((f) => [f, contact[f] ?? '']));
 
+/** Empty inputs become null so optional fields can be cleared on update. */
+function toPayload(values) {
+    const body = { ...values };
+    for (const key of FIELDS) if (!REQUIRED_FIELDS.includes(key) && body[key] === '') body[key] = null;
+    return body;
+}
+
+const stepOf = (field) => STEP_FIELDS.findIndex((fields) => fields.includes(field));
+
+/* -------------------------------------------------------------------------- */
+/* State                                                                      */
+/* -------------------------------------------------------------------------- */
+
+const isEdit = computed(() => props.contactId !== null);
+const form = reactive(blank());
 const errors = ref({});
-
 const loading = ref(isEdit.value);
 const saving = ref(false);
+const formEl = ref(null);
+const step = ref(0);
+const isLastStep = computed(() => step.value === STEPS.length - 1);
+const today = new Date().toISOString().slice(0, 10); // upper bound for the birthday picker
 
-/*
-|--------------------------------------------------------------------------
-| Options
-|--------------------------------------------------------------------------
-*/
+// Unsaved-changes tracking: the drawer asks before discarding a dirty form.
+const serialize = () => JSON.stringify(form);
+const snapshot = ref(serialize());
+const isDirty = computed(() => serialize() !== snapshot.value);
+defineExpose({ isDirty });
 
-const CONTACT_TYPES = [
-    {
-        value: 'individual',
-        label: 'Individual',
-    },
-    {
-        value: 'business',
-        label: 'Business',
-    },
-];
+const cls = (field) => ({ 'is-invalid': Boolean(errors.value[field]) });
 
-const CONTACT_SOURCES = [
-    {
-        value: 'website',
-        label: 'Website',
-    },
-    {
-        value: 'referral',
-        label: 'Referral',
-    },
-    {
-        value: 'social_media',
-        label: 'Social media',
-    },
-    {
-        value: 'email',
-        label: 'Email',
-    },
-    {
-        value: 'phone',
-        label: 'Phone',
-    },
-    {
-        value: 'advertisement',
-        label: 'Advertisement',
-    },
-    {
-        value: 'event',
-        label: 'Event',
-    },
-    {
-        value: 'other',
-        label: 'Other',
-    },
-];
+const focusFirstField = () => formEl.value?.querySelector('input:not([type="hidden"])')?.focus();
+const focusFirstInvalid = () => formEl.value?.querySelector('.is-invalid')?.focus();
 
-const COMPANY_SIZES = [
-    {
-        value: '1-10',
-        label: '1–10 employees',
-    },
-    {
-        value: '11-50',
-        label: '11–50 employees',
-    },
-    {
-        value: '51-200',
-        label: '51–200 employees',
-    },
-    {
-        value: '201-500',
-        label: '201–500 employees',
-    },
-    {
-        value: '501-1000',
-        label: '501–1,000 employees',
-    },
-    {
-        value: '1000+',
-        label: '1,000+ employees',
-    },
-];
+/* -------------------------------------------------------------------------- */
+/* Steps                                                                      */
+/* -------------------------------------------------------------------------- */
 
-const INDUSTRIES = [
-    'Technology',
-    'Software',
-    'Finance',
-    'Banking',
-    'Healthcare',
-    'Education',
-    'Real Estate',
-    'Retail',
-    'Manufacturing',
-    'Construction',
-    'Telecommunications',
-    'Marketing',
-    'Consulting',
-    'Government',
-    'Other',
-];
+/** Client-side check of step 1 so the user finds mistakes before moving on. The server stays the authority. */
+function validateBasics() {
+    const found = {};
+    if (!form.first_name.trim()) found.first_name = 'First name is required.';
+    if (!form.last_name.trim()) found.last_name = 'Last name is required.';
+    if (form.email.trim() && !EMAIL_PATTERN.test(form.email.trim())) found.email = 'Enter a valid email address.';
 
-/*
-|--------------------------------------------------------------------------
-| Load contact
-|--------------------------------------------------------------------------
-*/
+    errors.value = found;
+    return Object.keys(found).length === 0;
+}
 
-onMounted(async () => {
-    if (!isEdit.value) {
+async function goNext() {
+    if (!validateBasics()) {
+        await nextTick(focusFirstInvalid);
         return;
     }
+    step.value += 1;
+    await nextTick(focusFirstField);
+}
+
+async function goBack() {
+    step.value = Math.max(0, step.value - 1);
+    await nextTick(focusFirstField);
+}
+
+/** The step header buttons: going back is always allowed, going forward needs a valid step 1. */
+async function goTo(index) {
+    if (index === step.value) return;
+    if (index < step.value) return goBack();
+    return goNext();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Company dropdown (+ "add company" opens the company create page)           */
+/* -------------------------------------------------------------------------- */
+
+const companies = ref([]);
+const currentCompany = ref(null); // keeps the saved company selectable even if it falls outside the options cap
+
+const companyOptions = computed(() =>
+    currentCompany.value && !companies.value.some((c) => c.id === currentCompany.value.id)
+        ? [currentCompany.value, ...companies.value]
+        : companies.value,
+);
+
+async function loadCompanies() {
+    try {
+        companies.value = await companiesApi.options();
+    } catch {
+        /* the company dropdown just stays empty */
+    }
+}
+
+// Opens in a new tab so this form (and anything typed in it) is never lost; the list refreshes on return.
+const createCompanyHref = computed(() => router.resolve({ name: 'companies.create' }).href);
+
+/* -------------------------------------------------------------------------- */
+/* Copy present address                                                       */
+/* -------------------------------------------------------------------------- */
+
+const sameAsPresent = ref(false);
+
+function copyPresent() {
+    for (const part of ADDRESS_PARTS) form[addressKey('permanent', part)] = form[addressKey('present', part)];
+}
+
+// While the box is ticked, permanent mirrors present as the user types.
+watch(
+    () => ADDRESS_PARTS.map((part) => form[addressKey('present', part)]),
+    () => sameAsPresent.value && copyPresent(),
+);
+watch(sameAsPresent, (on) => on && copyPresent());
+
+/** On edit: tick the box again when the saved permanent address is identical to present. */
+function permanentMatchesPresent() {
+    const hasPresent = ADDRESS_PARTS.some((part) => form[addressKey('present', part)] !== '');
+    return hasPresent && ADDRESS_PARTS.every((part) => form[addressKey('permanent', part)] === form[addressKey('present', part)]);
+}
+
+const isMirrored = (group) => group === 'permanent' && sameAsPresent.value;
+
+/* -------------------------------------------------------------------------- */
+/* Lookups ("Industry +", "Contact Source +", "Contact Stage +")              */
+/* -------------------------------------------------------------------------- */
+
+// Industries are shared with companies, so creating one here makes it available there too.
+const createIndustry = (name) => companyLookupsApi.create('industries', name);
+const createSource = (name) => contactLookupsApi.create('contact-sources', name);
+const createStage = (name) => contactLookupsApi.create('contact-stages', name);
+const onLookupCreated = (kind, item) => emit('lookup-created', { kind, item });
+
+/* -------------------------------------------------------------------------- */
+/* Load (edit mode)                                                           */
+/* -------------------------------------------------------------------------- */
+
+onMounted(async () => {
+    window.addEventListener('focus', loadCompanies); // pick up a company created in the other tab
+    loadCompanies();
+
+    if (!isEdit.value) return;
 
     try {
-        const contact = await contactsApi.get(props.id);
-
-        Object.assign(form, {
-            first_name: contact.first_name ?? '',
-            last_name: contact.last_name ?? '',
-            email: contact.email ?? '',
-            phone: contact.phone ?? '',
-            mobile: contact.mobile ?? '',
-            job_title: contact.job_title ?? '',
-            department: contact.department ?? '',
-            date_of_birth: contact.date_of_birth ?? '',
-
-            company: contact.company ?? '',
-            website: contact.website ?? '',
-            industry: contact.industry ?? '',
-            company_size: contact.company_size ?? '',
-
-            address: contact.address ?? '',
-            city: contact.city ?? '',
-            state: contact.state ?? '',
-            postal_code: contact.postal_code ?? '',
-            country: contact.country ?? '',
-
-            status: contact.status ?? 'lead',
-            contact_type: contact.contact_type ?? 'individual',
-            source: contact.source ?? '',
-            owner_id: contact.owner_id ?? null,
-
-            notes: contact.notes ?? '',
-        });
-    } catch (error) {
-        toast.error(
-            parseApiError(error).message || 'Contact not found.'
-        );
-
-        router.replace({
-            name: 'contacts.index',
-        });
+        const contact = await contactsApi.get(props.contactId);
+        Object.assign(form, fromContact(contact));
+        currentCompany.value = contact.company ?? null;
+        sameAsPresent.value = permanentMatchesPresent();
+        snapshot.value = serialize();
+    } catch {
+        toast.error('Could not load the contact.');
+        emit('cancel');
     } finally {
         loading.value = false;
     }
 });
 
-/*
-|--------------------------------------------------------------------------
-| Submit
-|--------------------------------------------------------------------------
-*/
+onBeforeUnmount(() => window.removeEventListener('focus', loadCompanies));
 
-async function submit() {
+/* -------------------------------------------------------------------------- */
+/* Submit                                                                     */
+/* -------------------------------------------------------------------------- */
+
+async function submit(addAnother) {
+    if (!validateBasics()) {
+        step.value = 0;
+        await nextTick(focusFirstInvalid);
+        return;
+    }
+
     saving.value = true;
     errors.value = {};
 
     try {
-        const payload = {
-            ...form,
-        };
+        const body = toPayload(form);
+        const saved = isEdit.value ? await contactsApi.update(props.contactId, body) : await contactsApi.create(body);
+        toast.success(isEdit.value ? 'Contact updated.' : 'Contact created.');
 
-        const saved = isEdit.value
-            ? await contactsApi.update(props.id, payload)
-            : await contactsApi.create(payload);
+        const keepOpen = addAnother && !isEdit.value;
+        if (keepOpen) {
+            // Keep owner and source: they rarely change between consecutive entries.
+            const { owner_id, contact_source_id } = form;
+            Object.assign(form, blank(), { owner_id, contact_source_id });
+            sameAsPresent.value = false;
+            step.value = 0;
+        }
+        snapshot.value = serialize();
 
-        toast.success(
-            isEdit.value
-                ? 'Contact updated successfully.'
-                : 'Contact created successfully.'
-        );
+        emit('saved', saved, { another: keepOpen });
+        if (keepOpen) await nextTick(focusFirstField);
+    } catch (e) {
+        const parsed = parseApiError(e);
+        errors.value = parsed.fields;
+        toast.error(parsed.message);
 
-        router.push({
-            name: 'contacts.show',
-            params: {
-                id: saved.id,
-            },
-        });
-    } catch (error) {
-        const parsed = parseApiError(error);
-
-        errors.value = parsed.fields || {};
-
-        toast.error(
-            parsed.message || 'Unable to save contact.'
-        );
+        // Jump to the earliest step that holds an invalid field.
+        const failing = Object.keys(parsed.fields).map(stepOf).filter((i) => i >= 0);
+        if (failing.length) step.value = Math.min(...failing);
+        await nextTick(focusFirstInvalid);
     } finally {
         saving.value = false;
     }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Cancel
-|--------------------------------------------------------------------------
-*/
-
-function cancel() {
-    router.push({
-        name: 'contacts.index',
-    });
-}
+// Enter on step 1 moves forward; only the last step actually saves.
+const onSubmit = (event) => (isLastStep.value ? submit(event.submitter?.dataset.action === 'another') : goNext());
 </script>
 
 <template>
-    <div class="contact-form-page">
-
-        <!-- ========================================================= -->
-        <!-- PAGE HEADER -->
-        <!-- ========================================================= -->
-
-        <div
-            class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4"
-        >
-            <div>
-                <div class="d-flex align-items-center gap-2 mb-1">
-
-                    <RouterLink
-                        :to="{ name: 'contacts.index' }"
-                        class="btn btn-sm btn-light border"
-                        title="Back to contacts"
-                    >
-                        <i class="bi bi-arrow-left"></i>
-                    </RouterLink>
-
-                    <h1 class="h3 fw-bold mb-0">
-                        {{ isEdit ? 'Edit contact' : 'New contact' }}
-                    </h1>
-
-                </div>
-
-                <p class="text-muted mb-0">
-                    {{
-                        isEdit
-                            ? 'Update contact information and CRM details.'
-                            : 'Create a new customer, lead or business contact.'
-                    }}
-                </p>
-            </div>
-
-            <div
-                v-if="isEdit"
-                class="d-flex align-items-center gap-2"
-            >
-                <span class="text-muted small">
-                    Contact ID:
-                </span>
-
-                <code class="small">
-                    {{ props.id }}
-                </code>
-            </div>
-        </div>
-
-        <!-- ========================================================= -->
-        <!-- LOADING -->
-        <!-- ========================================================= -->
-
-        <LoadingBlock v-if="loading" />
-
-        <form
-            v-else
-            @submit.prevent="submit"
-        >
-
-            <!-- ===================================================== -->
-            <!-- PERSONAL INFORMATION -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm mb-4">
-
-                <div class="card-header bg-white py-3">
-
-                    <div class="d-flex align-items-center gap-3">
-
-                        <div class="section-icon bg-primary-subtle text-primary">
-                            <i class="bi bi-person"></i>
-                        </div>
-
-                        <div>
-                            <h5 class="mb-0 fw-semibold">
-                                Personal information
-                            </h5>
-
-                            <small class="text-muted">
-                                Basic contact details
-                            </small>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-4">
-
-                        <!-- First name -->
-                        <FormField
-                            class="col-md-6"
-                            label="First name"
-                            required
-                            :error="errors.first_name"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-person"></i>
-
-                                <input
-                                    v-model="form.first_name"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="John"
-                                    autocomplete="given-name"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.first_name
-                                    }"
-                                    required
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Last name -->
-                        <FormField
-                            class="col-md-6"
-                            label="Last name"
-                            required
-                            :error="errors.last_name"
-                        >
-                            <input
-                                v-model="form.last_name"
-                                type="text"
-                                class="form-control"
-                                placeholder="Doe"
-                                autocomplete="family-name"
-                                :class="{
-                                    'is-invalid':
-                                        errors.last_name
-                                }"
-                                required
-                            />
-                        </FormField>
-
-                        <!-- Email -->
-                        <FormField
-                            class="col-md-6"
-                            label="Email"
-                            required
-                            :error="errors.email"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-envelope"></i>
-
-                                <input
-                                    v-model="form.email"
-                                    type="email"
-                                    class="form-control"
-                                    placeholder="john@example.com"
-                                    autocomplete="email"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.email
-                                    }"
-                                    required
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Phone -->
-                        <FormField
-                            class="col-md-6"
-                            label="Phone"
-                            :error="errors.phone"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-telephone"></i>
-
-                                <input
-                                    v-model="form.phone"
-                                    type="tel"
-                                    class="form-control"
-                                    placeholder="+880 1XXXXXXXXX"
-                                    autocomplete="tel"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.phone
-                                    }"
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Mobile -->
-                        <FormField
-                            class="col-md-6"
-                            label="Mobile"
-                            :error="errors.mobile"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-phone"></i>
-
-                                <input
-                                    v-model="form.mobile"
-                                    type="tel"
-                                    class="form-control"
-                                    placeholder="+880 1XXXXXXXXX"
-                                    autocomplete="tel"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.mobile
-                                    }"
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Job title -->
-                        <FormField
-                            class="col-md-6"
-                            label="Job title"
-                            :error="errors.job_title"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-briefcase"></i>
-
-                                <input
-                                    v-model="form.job_title"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Sales Manager"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.job_title
-                                    }"
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Department -->
-                        <FormField
-                            class="col-md-6"
-                            label="Department"
-                            :error="errors.department"
-                        >
-                            <input
-                                v-model="form.department"
-                                type="text"
-                                class="form-control"
-                                placeholder="Sales"
-                                :class="{
-                                    'is-invalid':
-                                        errors.department
-                                }"
-                            />
-                        </FormField>
-
-                        <!-- Date of birth -->
-                        <FormField
-                            class="col-md-6"
-                            label="Date of birth"
-                            :error="errors.date_of_birth"
-                        >
-                            <input
-                                v-model="form.date_of_birth"
-                                type="date"
-                                class="form-control"
-                                :class="{
-                                    'is-invalid':
-                                        errors.date_of_birth
-                                }"
-                            />
-                        </FormField>
-
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- ===================================================== -->
-            <!-- COMPANY -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm mb-4">
-
-                <div class="card-header bg-white py-3">
-
-                    <div class="d-flex align-items-center gap-3">
-
-                        <div class="section-icon bg-info-subtle text-info">
-                            <i class="bi bi-building"></i>
-                        </div>
-
-                        <div>
-                            <h5 class="mb-0 fw-semibold">
-                                Company information
-                            </h5>
-
-                            <small class="text-muted">
-                                Organization and professional details
-                            </small>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-4">
-
-                        <!-- Company -->
-                        <FormField
-                            class="col-md-6"
-                            label="Company"
-                            :error="errors.company"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-building"></i>
-
-                                <input
-                                    v-model="form.company"
-                                    type="text"
-                                    class="form-control"
-                                    placeholder="Acme Corporation"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.company
-                                    }"
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Website -->
-                        <FormField
-                            class="col-md-6"
-                            label="Website"
-                            :error="errors.website"
-                        >
-                            <div class="input-icon-wrapper">
-                                <i class="bi bi-globe"></i>
-
-                                <input
-                                    v-model="form.website"
-                                    type="url"
-                                    class="form-control"
-                                    placeholder="https://example.com"
-                                    :class="{
-                                        'is-invalid':
-                                            errors.website
-                                    }"
-                                />
-                            </div>
-                        </FormField>
-
-                        <!-- Industry -->
-                        <FormField
-                            class="col-md-6"
-                            label="Industry"
-                            :error="errors.industry"
-                        >
-                            <select
-                                v-model="form.industry"
-                                class="form-select"
-                                :class="{
-                                    'is-invalid':
-                                        errors.industry
-                                }"
-                            >
-                                <option value="">
-                                    Select industry
-                                </option>
-
-                                <option
-                                    v-for="industry in INDUSTRIES"
-                                    :key="industry"
-                                    :value="industry"
-                                >
-                                    {{ industry }}
-                                </option>
-                            </select>
-                        </FormField>
-
-                        <!-- Company size -->
-                        <FormField
-                            class="col-md-6"
-                            label="Company size"
-                            :error="errors.company_size"
-                        >
-                            <select
-                                v-model="form.company_size"
-                                class="form-select"
-                                :class="{
-                                    'is-invalid':
-                                        errors.company_size
-                                }"
-                            >
-                                <option value="">
-                                    Select company size
-                                </option>
-
-                                <option
-                                    v-for="size in COMPANY_SIZES"
-                                    :key="size.value"
-                                    :value="size.value"
-                                >
-                                    {{ size.label }}
-                                </option>
-                            </select>
-                        </FormField>
-
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- ===================================================== -->
-            <!-- ADDRESS -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm mb-4">
-
-                <div class="card-header bg-white py-3">
-
-                    <div class="d-flex align-items-center gap-3">
-
-                        <div class="section-icon bg-success-subtle text-success">
-                            <i class="bi bi-geo-alt"></i>
-                        </div>
-
-                        <div>
-                            <h5 class="mb-0 fw-semibold">
-                                Address
-                            </h5>
-
-                            <small class="text-muted">
-                                Contact location
-                            </small>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-4">
-
-                        <!-- Address -->
-                        <FormField
-                            class="col-12"
-                            label="Street address"
-                            :error="errors.address"
-                        >
-                            <textarea
-                                v-model="form.address"
-                                rows="2"
-                                class="form-control"
-                                placeholder="Street, building, apartment..."
-                                :class="{
-                                    'is-invalid':
-                                        errors.address
-                                }"
-                            ></textarea>
-                        </FormField>
-
-                        <!-- City -->
-                        <FormField
-                            class="col-md-6"
-                            label="City"
-                            :error="errors.city"
-                        >
-                            <input
-                                v-model="form.city"
-                                type="text"
-                                class="form-control"
-                                placeholder="Dhaka"
-                                :class="{
-                                    'is-invalid':
-                                        errors.city
-                                }"
-                            />
-                        </FormField>
-
-                        <!-- State -->
-                        <FormField
-                            class="col-md-6"
-                            label="State / Province"
-                            :error="errors.state"
-                        >
-                            <input
-                                v-model="form.state"
-                                type="text"
-                                class="form-control"
-                                placeholder="Dhaka Division"
-                                :class="{
-                                    'is-invalid':
-                                        errors.state
-                                }"
-                            />
-                        </FormField>
-
-                        <!-- Postal -->
-                        <FormField
-                            class="col-md-6"
-                            label="Postal code"
-                            :error="errors.postal_code"
-                        >
-                            <input
-                                v-model="form.postal_code"
-                                type="text"
-                                class="form-control"
-                                placeholder="1200"
-                                :class="{
-                                    'is-invalid':
-                                        errors.postal_code
-                                }"
-                            />
-                        </FormField>
-
-                        <!-- Country -->
-                        <FormField
-                            class="col-md-6"
-                            label="Country"
-                            :error="errors.country"
-                        >
-                            <input
-                                v-model="form.country"
-                                type="text"
-                                class="form-control"
-                                placeholder="Bangladesh"
-                                :class="{
-                                    'is-invalid':
-                                        errors.country
-                                }"
-                            />
-                        </FormField>
-
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- ===================================================== -->
-            <!-- CRM INFORMATION -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm mb-4">
-
-                <div class="card-header bg-white py-3">
-
-                    <div class="d-flex align-items-center gap-3">
-
-                        <div class="section-icon bg-warning-subtle text-warning">
-                            <i class="bi bi-funnel"></i>
-                        </div>
-
-                        <div>
-                            <h5 class="mb-0 fw-semibold">
-                                CRM information
-                            </h5>
-
-                            <small class="text-muted">
-                                Classification and lead management
-                            </small>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="card-body">
-
-                    <div class="row g-4">
-
-                        <!-- Status -->
-                        <FormField
-                            class="col-md-4"
-                            label="Status"
-                            required
-                            :error="errors.status"
-                        >
-                            <select
-                                v-model="form.status"
-                                class="form-select"
-                                :class="{
-                                    'is-invalid':
-                                        errors.status
-                                }"
-                                required
-                            >
-                                <option
-                                    v-for="status in CONTACT_STATUSES"
-                                    :key="status.value"
-                                    :value="status.value"
-                                >
-                                    {{ status.label }}
-                                </option>
-                            </select>
-                        </FormField>
-
-                        <!-- Contact type -->
-                        <FormField
-                            class="col-md-4"
-                            label="Contact type"
-                            :error="errors.contact_type"
-                        >
-                            <select
-                                v-model="form.contact_type"
-                                class="form-select"
-                                :class="{
-                                    'is-invalid':
-                                        errors.contact_type
-                                }"
-                            >
-                                <option
-                                    v-for="type in CONTACT_TYPES"
-                                    :key="type.value"
-                                    :value="type.value"
-                                >
-                                    {{ type.label }}
-                                </option>
-                            </select>
-                        </FormField>
-
-                        <!-- Source -->
-                        <FormField
-                            class="col-md-4"
-                            label="Lead source"
-                            :error="errors.source"
-                        >
-                            <select
-                                v-model="form.source"
-                                class="form-select"
-                                :class="{
-                                    'is-invalid':
-                                        errors.source
-                                }"
-                            >
-                                <option value="">
-                                    Select source
-                                </option>
-
-                                <option
-                                    v-for="source in CONTACT_SOURCES"
-                                    :key="source.value"
-                                    :value="source.value"
-                                >
-                                    {{ source.label }}
-                                </option>
-                            </select>
-                        </FormField>
-
-                        <!-- Owner -->
-                        <FormField
-                            class="col-md-6"
-                            label="Contact owner"
-                            :error="errors.owner_id"
-                        >
-                            <!--
-                                Replace this with your usersApi.list()
-                                once you implement user ownership.
-                            -->
-                            <select
-                                v-model="form.owner_id"
-                                class="form-select"
-                                :class="{
-                                    'is-invalid':
-                                        errors.owner_id
-                                }"
-                            >
-                                <option :value="null">
-                                    Unassigned
-                                </option>
-                            </select>
-
-                            <div class="form-text">
-                                The CRM user responsible for this contact.
-                            </div>
-                        </FormField>
-
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- ===================================================== -->
-            <!-- NOTES -->
-            <!-- ===================================================== -->
-
-            <div class="card border-0 shadow-sm mb-4">
-
-                <div class="card-header bg-white py-3">
-
-                    <div class="d-flex align-items-center gap-3">
-
-                        <div class="section-icon bg-secondary-subtle text-secondary">
-                            <i class="bi bi-sticky"></i>
-                        </div>
-
-                        <div>
-                            <h5 class="mb-0 fw-semibold">
-                                Notes
-                            </h5>
-
-                            <small class="text-muted">
-                                Internal notes about this contact
-                            </small>
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="card-body">
-
-                    <FormField
-                        label="Notes"
-                        :error="errors.notes"
-                    >
-                        <textarea
-                            v-model="form.notes"
-                            rows="5"
-                            class="form-control"
-                            placeholder="Add useful information about this contact..."
-                            :class="{
-                                'is-invalid':
-                                    errors.notes
-                            }"
-                        ></textarea>
-
-                        <div class="form-text">
-                            These notes are visible to authorized CRM users.
-                        </div>
+    <LoadingBlock v-if="loading" />
+
+    <form v-else ref="formEl" class="contact-form" novalidate @submit.prevent="onSubmit">
+        <!-- Step indicator -->
+        <ol class="contact-form__steps" aria-label="Form steps">
+            <li v-for="(s, index) in STEPS" :key="s.key" class="contact-form__step-item">
+                <button
+                    type="button"
+                    class="contact-form__step"
+                    :class="{ 'is-active': index === step, 'is-done': index < step }"
+                    :aria-current="index === step ? 'step' : null"
+                    @click="goTo(index)"
+                >
+                    <span class="contact-form__step-index">
+                        <i v-if="index < step" class="bi bi-check-lg" aria-hidden="true"></i>
+                        <template v-else>{{ index + 1 }}</template>
+                    </span>
+                    {{ s.title }}
+                </button>
+            </li>
+        </ol>
+
+        <!-- Step 1: basic information -->
+        <div v-show="step === 0">
+            <section class="contact-form__section">
+                <h3 class="contact-form__title"><i class="bi bi-person"></i>Contact information</h3>
+                <div class="row g-3">
+                    <FormField class="col-md-6" label="First name" required :error="errors.first_name">
+                        <input v-model="form.first_name" type="text" maxlength="100" placeholder="Jane" class="form-control" :class="cls('first_name')" />
                     </FormField>
 
+                    <FormField class="col-md-6" label="Last name" required :error="errors.last_name">
+                        <input v-model="form.last_name" type="text" maxlength="100" placeholder="Doe" class="form-control" :class="cls('last_name')" />
+                    </FormField>
+
+                    <FormField class="col-md-6" label="Contact owner" :error="errors.owner_id">
+                        <select v-model="form.owner_id" class="form-select" :class="cls('owner_id')">
+                            <option value="">Unassigned</option>
+                            <option v-for="o in owners" :key="o.id" :value="o.id">{{ o.name }}</option>
+                        </select>
+                    </FormField>
+
+                    <FormField class="col-md-6" label="Email" :error="errors.email">
+                        <input v-model="form.email" type="email" placeholder="jane@acme.com" class="form-control" :class="cls('email')" />
+                    </FormField>
+
+                    <FormField class="col-md-6" label="Birthday" :error="errors.birthday">
+                        <input v-model="form.birthday" type="date" min="1900-01-02" :max="today" class="form-control" :class="cls('birthday')" />
+                    </FormField>
+
+                    <FormField class="col-md-6" label="Phone number" :error="errors.phone">
+                        <input v-model="form.phone" type="tel" placeholder="+880 1700 000000" class="form-control" :class="cls('phone')" />
+                    </FormField>
                 </div>
-            </div>
+            </section>
 
-            <!-- ===================================================== -->
-            <!-- ACTION BAR -->
-            <!-- ===================================================== -->
+            <section class="contact-form__section">
+                <h3 class="contact-form__title"><i class="bi bi-building"></i>Work</h3>
+                <div class="row g-3">
+                    <FormField class="col-md-6" label="Company" :error="errors.company_id">
+                        <div class="input-group">
+                            <select v-model="form.company_id" class="form-select" :class="cls('company_id')">
+                                <option value="">No company</option>
+                                <option v-for="c in companyOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+                            </select>
+                            <a
+                                :href="createCompanyHref"
+                                target="_blank"
+                                rel="noopener"
+                                class="btn btn-outline-secondary"
+                                title="Add company"
+                                aria-label="Add company (opens in a new tab)"
+                            >
+                                <i class="bi bi-plus-lg"></i>
+                            </a>
+                        </div>
+                        <div class="form-text">Opens in a new tab; the list refreshes when you come back.</div>
+                    </FormField>
 
-            <div
-                class="card border-0 shadow-sm mb-5 sticky-action-bar"
-            >
-                <div
-                    class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3"
-                >
+                    <FormField class="col-md-6" label="Job title" :error="errors.job_title">
+                        <input v-model="form.job_title" type="text" maxlength="150" placeholder="Head of Sales" class="form-control" :class="cls('job_title')" />
+                    </FormField>
 
-                    <div class="small text-muted">
-                        <i class="bi bi-shield-check me-1"></i>
+                    <FormField class="col-md-6" label="Department" :error="errors.department">
+                        <input v-model="form.department" type="text" maxlength="100" placeholder="Sales" class="form-control" :class="cls('department')" />
+                    </FormField>
 
-                        All required fields are marked with
-                        <span class="text-danger">*</span>
-                    </div>
+                    <FormField class="col-md-6" label="Industry" :error="errors.industry_id">
+                        <LookupSelect
+                            v-model="form.industry_id"
+                            :options="industries"
+                            :create="createIndustry"
+                            :invalid="Boolean(errors.industry_id)"
+                            placeholder="Select industry"
+                            add-label="Add industry"
+                            add-placeholder="New industry"
+                            @created="onLookupCreated('industries', $event)"
+                        />
+                    </FormField>
 
-                    <div class="d-flex gap-2">
+                    <FormField class="col-md-6" label="Contact source" :error="errors.contact_source_id">
+                        <LookupSelect
+                            v-model="form.contact_source_id"
+                            :options="sources"
+                            :create="createSource"
+                            :invalid="Boolean(errors.contact_source_id)"
+                            placeholder="Select source"
+                            add-label="Add contact source"
+                            add-placeholder="New contact source"
+                            @created="onLookupCreated('contact-sources', $event)"
+                        />
+                    </FormField>
 
-                        <button
-                            type="button"
-                            class="btn btn-light border"
-                            :disabled="saving"
-                            @click="cancel"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            class="btn btn-primary px-4"
-                            :disabled="saving"
-                        >
-                            <span
-                                v-if="saving"
-                                class="spinner-border spinner-border-sm me-2"
-                                aria-hidden="true"
-                            ></span>
-
-                            <i
-                                v-else
-                                class="bi bi-check-lg me-1"
-                            ></i>
-
-                            {{
-                                saving
-                                    ? 'Saving...'
-                                    : isEdit
-                                        ? 'Save changes'
-                                        : 'Create contact'
-                            }}
-                        </button>
-
-                    </div>
-
+                    <FormField class="col-md-6" label="Contact stage" :error="errors.contact_stage_id">
+                        <LookupSelect
+                            v-model="form.contact_stage_id"
+                            :options="stages"
+                            :create="createStage"
+                            :invalid="Boolean(errors.contact_stage_id)"
+                            placeholder="Select stage"
+                            add-label="Add contact stage"
+                            add-placeholder="New contact stage"
+                            @created="onLookupCreated('contact-stages', $event)"
+                        />
+                    </FormField>
                 </div>
-            </div>
+            </section>
+        </div>
 
-        </form>
+        <!-- Step 2: address, social, notes -->
+        <div v-show="step === 1">
+            <section v-for="g in ADDRESS_GROUPS" :key="g.key" class="contact-form__section">
+                <div class="contact-form__title-row">
+                    <h3 class="contact-form__title mb-0"><i class="bi" :class="g.icon"></i>{{ g.title }}</h3>
 
-    </div>
+                    <div v-if="g.key === 'permanent'" class="form-check mb-0">
+                        <input id="contact-copy-present" v-model="sameAsPresent" type="checkbox" class="form-check-input" />
+                        <label for="contact-copy-present" class="form-check-label">Same as present address</label>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <FormField
+                        v-for="f in ADDRESS_FIELDS"
+                        :key="f.part"
+                        :class="f.col"
+                        :label="f.label"
+                        :error="errors[addressKey(g.key, f.part)]"
+                    >
+                        <input
+                            v-model="form[addressKey(g.key, f.part)]"
+                            type="text"
+                            :disabled="isMirrored(g.key)"
+                            :placeholder="f.placeholder"
+                            class="form-control"
+                            :class="cls(addressKey(g.key, f.part))"
+                        />
+                    </FormField>
+                </div>
+            </section>
+
+            <section class="contact-form__section">
+                <h3 class="contact-form__title"><i class="bi bi-share"></i>Social profiles</h3>
+                <div class="row g-3">
+                    <FormField v-for="s in SOCIAL_FIELDS" :key="s.key" class="col-md-6" :label="s.label" :error="errors[s.key]">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi" :class="s.icon"></i></span>
+                            <input v-model="form[s.key]" type="text" inputmode="url" :placeholder="s.placeholder" class="form-control" :class="cls(s.key)" />
+                        </div>
+                    </FormField>
+                </div>
+            </section>
+
+            <section class="contact-form__section">
+                <h3 class="contact-form__title"><i class="bi bi-journal-text"></i>Description</h3>
+                <FormField label="Description" :error="errors.description">
+                    <textarea
+                        v-model="form.description"
+                        rows="4"
+                        maxlength="5000"
+                        placeholder="Anything worth remembering about this contact…"
+                        class="form-control"
+                        :class="cls('description')"
+                    ></textarea>
+                </FormField>
+            </section>
+        </div>
+
+        <!-- Actions -->
+        <div class="contact-form__actions">
+            <template v-if="!isLastStep">
+                <button type="submit" class="btn btn-primary">Next<i class="bi bi-arrow-right ms-2"></i></button>
+            </template>
+
+            <template v-else>
+                <div class="contact-form__nav">
+                    <button type="button" class="btn btn-outline-secondary" :disabled="saving" @click="goBack">
+                        <i class="bi bi-arrow-left me-2"></i>Back
+                    </button>
+                    <button type="submit" class="btn btn-primary flex-grow-1" :disabled="saving">
+                        <span v-if="saving" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                        {{ isEdit ? 'Save Changes' : 'Create Contact' }}
+                    </button>
+                </div>
+                <button v-if="!isEdit" type="submit" data-action="another" class="btn btn-link text-decoration-none" :disabled="saving">
+                    Save &amp; add another
+                </button>
+            </template>
+        </div>
+    </form>
 </template>
 
 <style scoped>
-.contact-form-page {
-    max-width: 1200px;
-    margin: 0 auto;
+.contact-form {
+    min-width: 0;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Section icon
-|--------------------------------------------------------------------------
-*/
+.contact-form__section + .contact-form__section {
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--crm-border, #e4e7ec);
+}
 
-.section-icon {
-    width: 42px;
-    height: 42px;
-
+.contact-form__title {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+    font-size: var(--crm-fs-sm, 0.8125rem);
+    font-weight: 600;
+    color: var(--crm-text-strong, #344054);
+}
+
+.contact-form__title i {
+    font-size: 1rem;
+    color: var(--crm-text-muted, #667085);
+}
+
+.contact-form__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.contact-form__title-row .contact-form__title {
+    margin-bottom: 0;
+}
+
+.contact-form__title-row .form-check-label {
+    font-size: var(--crm-fs-sm, 0.8125rem);
+    font-weight: 500;
+    color: var(--crm-text-strong, #344054);
+}
+
+.contact-form__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 1.75rem;
+}
+
+.contact-form__actions .btn-primary {
+    min-height: 2.75rem;
+}
+
+/* Standard control size, matching the rest of the app */
+.contact-form :deep(.form-control),
+.contact-form :deep(.form-select) {
+    min-height: var(--crm-control-h, 2.25rem);
+    font-size: var(--crm-fs, 0.875rem);
+    background-color: var(--crm-bg, #f9fafb);
+}
+
+.contact-form :deep(.form-control:focus),
+.contact-form :deep(.form-select:focus) {
+    background-color: #fff;
+}
+
+.contact-form :deep(.form-control:disabled) {
+    color: var(--crm-text-muted, #667085);
+    background-color: var(--crm-hover, #f2f4f7);
+}
+
+.contact-form :deep(textarea.form-control) {
+    min-height: 6rem;
+    resize: vertical;
+}
+
+.contact-form :deep(.form-label) {
+    margin-bottom: 0.25rem;
+    font-size: var(--crm-fs-sm, 0.8125rem);
+    font-weight: 500;
+    color: var(--crm-text-strong, #344054);
+}
+
+.contact-form :deep(.form-text) {
+    font-size: var(--crm-fs-xs, 0.75rem);
+}
+
+.contact-form :deep(.input-group-text) {
+    color: var(--crm-text-muted, #667085);
+    background-color: var(--crm-hover, #f2f4f7);
+}
+
+.contact-form :deep(.btn) {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-
-    border-radius: 12px;
-
-    font-size: 19px;
+    min-height: var(--crm-control-h, 2.25rem);
+    font-size: var(--crm-fs, 0.875rem);
+    font-weight: 500;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Input icons
-|--------------------------------------------------------------------------
-*/
-
-.input-icon-wrapper {
-    position: relative;
+.contact-form__currency {
+    flex: 0 0 5.5rem;
 }
 
-.input-icon-wrapper > i {
-    position: absolute;
-
-    left: 14px;
-    top: 50%;
-
-    transform: translateY(-50%);
-
-    color: #6c757d;
-
-    pointer-events: none;
-
-    z-index: 2;
+/* Step indicator */
+.contact-form__steps {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0;
+    margin: 0 0 1.5rem;
+    list-style: none;
 }
 
-.input-icon-wrapper .form-control {
-    padding-left: 40px;
+.contact-form__step-item {
+    flex: 1 1 0;
+    min-width: 0;
 }
 
-/*
-|--------------------------------------------------------------------------
-| Cards
-|--------------------------------------------------------------------------
-*/
-
-.card {
-    border-radius: 12px;
+.contact-form__step {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-size: var(--crm-fs-sm, 0.8125rem);
+    font-weight: 500;
+    color: var(--crm-text-muted, #667085);
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--crm-border, #e4e7ec);
+    border-radius: var(--crm-radius, 0.5rem);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.card-header {
-    border-bottom: 1px solid #edf0f2;
+.contact-form__step.is-active {
+    color: var(--crm-primary);
+    background: var(--crm-primary-soft);
+    border-color: var(--crm-primary);
 }
 
-/*
-|--------------------------------------------------------------------------
-| Sticky action bar
-|--------------------------------------------------------------------------
-*/
-
-.sticky-action-bar {
-    position: sticky;
-    bottom: 16px;
-    z-index: 20;
+.contact-form__step.is-done {
+    color: var(--crm-text-strong, #344054);
 }
 
-/*
-|--------------------------------------------------------------------------
-| Form controls
-|--------------------------------------------------------------------------
-*/
-
-.form-control,
-.form-select {
-    min-height: 42px;
+.contact-form__step-index {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: var(--crm-fs-xs, 0.75rem);
+    font-weight: 600;
+    background: var(--crm-hover, #f2f4f7);
+    border-radius: 50%;
 }
 
-textarea.form-control {
-    min-height: auto;
+.contact-form__step.is-active .contact-form__step-index {
+    color: #fff;
+    background: var(--crm-primary);
 }
 
-/*
-|--------------------------------------------------------------------------
-| Mobile
-|--------------------------------------------------------------------------
-*/
-
-@media (max-width: 767.98px) {
-    .contact-form-page {
-        max-width: 100%;
-    }
-
-    .sticky-action-bar {
-        position: static;
-    }
+.contact-form__nav {
+    display: flex;
+    gap: 0.5rem;
 }
 </style>

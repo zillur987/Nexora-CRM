@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CompanyLookupController;
 use App\Http\Controllers\Api\V1\ContactController;
+use App\Http\Controllers\Api\V1\ContactLookupController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\LeadController;
@@ -22,10 +23,6 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
 
         Route::get('dashboard', DashboardController::class);
-
-        // Static routes must be declared before the {id} resource routes.
-        Route::get('contacts/options', [ContactController::class, 'options']);
-        Route::apiResource('contacts', ContactController::class);
 
         Route::get('deals/pipeline', [DealController::class, 'pipeline']);
         Route::patch('deals/{deal}/stage', [DealController::class, 'changeStage']);
@@ -56,5 +53,12 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('companies', CompanyController::class);
         Route::get('company-lookups/{lookup}', [CompanyLookupController::class, 'index']);
         Route::post('company-lookups/{lookup}', [CompanyLookupController::class, 'store'])->middleware('throttle:30,1');
+
+        // Contacts
+        Route::get('contacts/summary', [ContactController::class, 'summary']);
+        Route::get('contacts/options', [ContactController::class, 'options']);
+        Route::apiResource('contacts', ContactController::class);
+        Route::get('contact-lookups/{lookup}', [ContactLookupController::class, 'index']);
+        Route::post('contact-lookups/{lookup}', [ContactLookupController::class, 'store'])->middleware('throttle:30,1');
     });
 });

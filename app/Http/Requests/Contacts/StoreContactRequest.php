@@ -4,33 +4,27 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Contacts;
 
-use App\Enums\ContactStatus;
+use App\Http\Requests\Contacts\Concerns\NormalizesContactInput;
+use App\Http\Requests\Contacts\Rules\ContactRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreContactRequest extends FormRequest
 {
+    use NormalizesContactInput;
+
     public function authorize(): bool
     {
         return true;
     }
 
-    protected function prepareForValidation(): void
-    {
-        if (is_string($this->input('email'))) {
-            $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
-        }
-    }
-
     public function rules(): array
     {
-        return [
-            'first_name' => ['required', 'string', 'max:80'],
-            'last_name' => ['required', 'string', 'max:80'],
-            'email' => ['required', 'email:rfc', 'max:254', Rule::unique('contacts', 'email')],
-            'phone' => ['nullable', 'string', 'min:5', 'max:30'],
-            'company' => ['nullable', 'string', 'max:120'],
-            'status' => ['sometimes', Rule::enum(ContactStatus::class)],
-        ];
+        $rules = ContactRules::attributes();
+
+        // Uniqueness among live rows only (soft deletes make a DB-level unique awkward).
+        $rules['email'][] = Rule::unique('contacts', 'email')->whereNull('deleted_at');
+
+        return $rules;
     }
 }

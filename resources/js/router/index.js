@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 const LeadList = () => import('@/views/leads/LeadListView.vue');
 const CompanyList = () => import('@/views/companies/CompanyListView.vue');
+const ContactList = () => import('@/views/contacts/ContactListView.vue');
 
 const routes = [
     {
@@ -93,32 +94,28 @@ const routes = [
             {
                 path: 'contacts',
                 name: 'contacts.index',
-                component: () =>
-                    import('@/views/contacts/ContactListView.vue'),
+                component: ContactList,
             },
 
             {
                 path: 'contacts/new',
                 name: 'contacts.create',
-                component: () =>
-                    import('@/views/contacts/ContactFormView.vue'),
+                component: ContactList,
             },
 
             {
                 path: 'contacts/:id',
                 name: 'contacts.show',
-                component: () =>
-                    import('@/views/contacts/ContactDetailView.vue'),
+                component: () => import('@/views/contacts/ContactDetailView.vue'),
                 props: true,
             },
 
             {
                 path: 'contacts/:id/edit',
                 name: 'contacts.edit',
-                component: () =>
-                    import('@/views/contacts/ContactFormView.vue'),
-                props: true,
+                component: ContactList,
             },
+
 
             // =====================================================
             // DEALS

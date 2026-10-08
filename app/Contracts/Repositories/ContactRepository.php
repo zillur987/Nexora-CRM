@@ -21,8 +21,9 @@ interface ContactRepository
 
     public function delete(Contact $contact): void;
 
-    public function hasOpenDeals(Contact $contact): bool;
+    /** @return Collection<string|int, int|string> contact_stage_id => number of contacts */
+    public function countByStage(): Collection;
 
-    /** Lightweight list for dropdowns. @return Collection<int, Contact> */
+    /** id + first/last name for <select> dropdowns. @return Collection<int, Contact> */
     public function options(): Collection;
 }

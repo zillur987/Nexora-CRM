@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\Repositories\ContactRepository;
-use App\Exceptions\BusinessRuleException;
 use App\Models\Contact;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -34,16 +33,32 @@ final class ContactService
 
     public function delete(Contact $contact): void
     {
-        if ($this->contacts->hasOpenDeals($contact)) {
-            throw new BusinessRuleException('Cannot delete a contact that has open deals.');
-        }
-
         $this->contacts->delete($contact);
     }
 
-    /** @return Collection<int, Contact> */
+    /**
+     * Contact count per stage for the list tabs.
+     *
+     * @return array{total: int, by_stage: array<string, int>}
+     */
+    public function summary(): array
+    {
+        $counts = $this->contacts->countByStage();
+
+        return [
+            'total' => (int) $counts->sum(),
+            'by_stage' => $counts
+                ->reject(fn ($count, $stageId) => $stageId === '' || $stageId === null) // contacts without a stage
+                ->map(fn ($count) => (int) $count)
+                ->all(),
+        ];
+    }
+
+    /** @return Collection<int, array{id: int, name: string}> */
     public function options(): Collection
     {
-        return $this->contacts->options();
+        return $this->contacts->options()
+            ->map(fn (Contact $contact) => ['id' => $contact->id, 'name' => $contact->full_name])
+            ->values();
     }
 }
