@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Leads\ChangeLeadStatusRequest;
 use App\Http\Requests\Leads\ConvertLeadRequest;
+use App\Http\Requests\Leads\ImportLeadsRequest;
 use App\Http\Requests\Leads\ListLeadsRequest;
 use App\Http\Requests\Leads\StoreLeadRequest;
 use App\Http\Requests\Leads\UpdateLeadRequest;
@@ -15,6 +16,7 @@ use App\Http\Resources\DealResource;
 use App\Http\Resources\LeadResource;
 use App\Models\Lead;
 use App\Services\LeadConversionService;
+use App\Services\LeadImportService;
 use App\Services\LeadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -25,6 +27,7 @@ class LeadController extends Controller
     public function __construct(
         private readonly LeadService $service,
         private readonly LeadConversionService $conversion,
+        private readonly LeadImportService $importer,
     ) {}
 
     public function index(ListLeadsRequest $request): AnonymousResourceCollection
@@ -45,6 +48,14 @@ class LeadController extends Controller
             ->setStatusCode(201);
     }
 
+     /** Bulk-create leads from an uploaded CSV. Responds with { created, skipped, errors[] }. */
+    public function import(ImportLeadsRequest $request): JsonResponse
+    {
+        $result = $this->importer->import($request->file('file')->getRealPath());
+
+        return response()->json(['data' => $result->toArray()]);
+    }
+    
     public function show(Lead $lead): LeadResource
     {
         return LeadResource::make($lead->load('owner'));

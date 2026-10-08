@@ -31,6 +31,16 @@ export const DEAL_STAGES = [
     { value: 'lost', label: 'Lost', color: 'danger' },
 ];
 
+// Add the new code right here, after LEAD_STATUSES
+const LEAD_STATUS_COLORS = {
+    new: 'primary',
+    contacted: 'info',
+    qualified: 'success',
+    unqualified: 'secondary',
+    lost: 'danger',
+    converted: 'success',
+};
+
 /** The happy path shown as a stepper (Lost is a side exit). */
 export const DEAL_FLOW = ['new', 'qualified', 'proposal', 'negotiation', 'won'];
 

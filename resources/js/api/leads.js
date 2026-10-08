@@ -11,4 +11,12 @@ export const leadsApi = {
     /** Resolves { lead, contact, deal, contact_created }. */
     convert: (id, payload) => http.post(`/leads/${id}/convert`, payload).then((r) => r.data.data),
     remove: (id) => http.delete(`/leads/${id}`),
+
+    import: (file) => {
+        const data = new FormData();
+        console.log(data, 'data')
+        data.append('file', file);
+        return http.post('/leads/import', data).then((r) => r.data);
+    },
 };
+

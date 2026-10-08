@@ -1,14 +1,16 @@
 <script setup>
 import { computed } from 'vue';
-import { contactStatusMeta, dealStageMeta } from '@/constants';
+import { contactStatusMeta, dealStageMeta, leadStatusMeta } from '@/constants';
 
 const props = defineProps({
-    kind: { type: String, required: true }, // 'contact' | 'deal'
+    kind: { type: String, required: true }, // 'contact' | 'deal' | 'lead'
     value: { type: String, required: true },
 });
 
+const MAPS = { contact: contactStatusMeta, deal: dealStageMeta, lead: leadStatusMeta };
+
 const meta = computed(() => {
-    const map = props.kind === 'deal' ? dealStageMeta : contactStatusMeta;
+    const map = MAPS[props.kind] ?? contactStatusMeta;
     return map[props.value] ?? { label: props.value, color: 'secondary' };
 });
 </script>

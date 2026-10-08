@@ -1,12 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-const props = defineProps({
+defineProps({
   collapsed: Boolean,
   mobileOpen: Boolean,
-  // `auth.user` is null until the session loads, so every access below is null-safe.
-  user: { type: Object, default: null },
 })
 const emit = defineEmits(['toggle', 'close'])
 
@@ -20,40 +18,77 @@ const groups = [
     label: 'Sales',
     items: [
       { name: 'Contacts', icon: 'bi-people', to: '/contacts', badge: 21 },
+      { name: 'Companies', icon: 'bi-building', to: '/companies' },
       { name: 'Leads', icon: 'bi-bullseye', to: '/leads', badge: 7 },
       { name: 'Deals', icon: 'bi-briefcase', to: '/deals', badge: 3 },
+      { name: 'Quotes', icon: 'bi-file-earmark-text', to: '/quotes' },
+      { name: 'Products', icon: 'bi-box-seam', to: '/products' },
     ],
   },
   {
     label: 'Pipelines',
-    items: [{ name: 'Pipelines', icon: 'bi-kanban-fill', to: '/pipelines' }],
+    items: [
+      { name: 'Pipelines', icon: 'bi-kanban-fill', to: '/pipelines' },
+      { name: 'Forecasts', icon: 'bi-graph-up-arrow', to: '/forecasts' },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { name: 'Campaigns', icon: 'bi-megaphone', to: '/campaigns' },
+      { name: 'Email templates', icon: 'bi-envelope-paper', to: '/email-templates' },
+      { name: 'Segments', icon: 'bi-funnel', to: '/segments' },
+    ],
   },
   {
     label: 'Work',
     items: [
       { name: 'Tasks', icon: 'bi-check2-square', to: '/tasks' },
       { name: 'Calendar', icon: 'bi-calendar3', to: '/calendar' },
+      { name: 'Meetings', icon: 'bi-camera-video', to: '/meetings' },
+      { name: 'Notes', icon: 'bi-journal-text', to: '/notes' },
+      { name: 'Documents', icon: 'bi-folder2-open', to: '/documents' },
       { name: 'Reports', icon: 'bi-bar-chart-line', to: '/reports' },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { name: 'Invoices', icon: 'bi-receipt', to: '/invoices' },
+      { name: 'Payments', icon: 'bi-credit-card', to: '/payments' },
+      { name: 'Expenses', icon: 'bi-wallet2', to: '/expenses' },
+    ],
+  },
+  {
+    label: 'Support',
+    items: [
+      { name: 'Tickets', icon: 'bi-life-preserver', to: '/tickets' },
+      { name: 'Knowledge base', icon: 'bi-book', to: '/knowledge-base' },
+    ],
+  },
+  {
+    label: 'Team',
+    items: [
+      { name: 'Team members', icon: 'bi-person-badge', to: '/team' },
+      { name: 'Roles & permissions', icon: 'bi-shield-lock', to: '/roles' },
+      { name: 'Integrations', icon: 'bi-plug', to: '/integrations' },
     ],
   },
 ]
 
 const route = useRoute()
 
+const navEl = ref(null)
+
+// With a long menu the active link can sit below the fold, so bring it into view.
+const revealActive = () =>
+  nextTick(() => navEl.value?.querySelector('.crm-nav-link.active')?.scrollIntoView({ block: 'nearest' }))
+
+onMounted(revealActive)
+watch(() => route.path, revealActive)
+
 // "/leads" matches "/leads" and "/leads/create", but not "/leads-archive".
 const isActive = (to) => (to === '/' ? route.path === '/' : route.path === to || route.path.startsWith(`${to}/`))
-
-const name = computed(() => props.user?.name || 'User')
-const role = computed(() => (typeof props.user?.role === 'string' ? props.user.role : ''))
-const initials = computed(() =>
-  name.value
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase(),
-)
 </script>
 
 <template>
@@ -71,7 +106,7 @@ const initials = computed(() =>
       </button>
     </div>
 
-    <nav class="crm-nav" aria-label="Main">
+    <nav ref="navEl" class="crm-nav" aria-label="Main">
       <div v-for="group in groups" :key="group.label" class="crm-nav-group">
         <div class="crm-nav-label">{{ group.label }}</div>
         <RouterLink
@@ -90,25 +125,5 @@ const initials = computed(() =>
         </RouterLink>
       </div>
     </nav>
-
-    <div class="crm-sidebar-foot">
-      <RouterLink
-        to="/settings"
-        class="crm-nav-link"
-        :class="{ active: isActive('/settings') }"
-        :aria-current="isActive('/settings') ? 'page' : null"
-        :title="collapsed ? 'Settings' : null"
-        @click="emit('close')"
-      >
-        <i class="bi bi-gear"></i><span class="crm-nav-text">Settings</span>
-      </RouterLink>
-      <div class="crm-user">
-        <span class="crm-avatar">{{ initials }}</span>
-        <div class="crm-user-meta">
-          <strong>{{ name }}</strong>
-          <small v-if="role">{{ role }}</small>
-        </div>
-      </div>
-    </div>
   </aside>
 </template>

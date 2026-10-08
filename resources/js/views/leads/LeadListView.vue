@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, unref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, unref, watch, reactive } from 'vue';
 import { leadsApi } from '@/api/leads';
 import { usersApi } from '@/api/users';
 import { LEAD_SOURCES, LEAD_STATUSES, leadSourceMeta } from '@/constants';
@@ -8,10 +8,15 @@ import { useToastStore } from '@/stores/toast';
 import { downloadCsv } from '@/utils/csv';
 import { parseApiError } from '@/utils/errors';
 import { formatDate, money } from '@/utils/format';
-import ConfirmModal from '@/components/ConfirmModal.vue';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal.vue';
 import LoadingBlock from '@/components/LoadingBlock.vue';
 import Pagination from '@/components/Pagination.vue';
 import ScoreBar from '@/components/ScoreBar.vue';
+import { useRoute, useRouter } from 'vue-router';
+import LeadFormView from '@/views/leads/LeadFormView.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import { LEAD_CSV_COLUMNS, leadToCsvRow } from '@/utils/leadCsv';
+
 
 const toast = useToastStore();
 
@@ -42,19 +47,20 @@ const convertStatus = (lead) => (lead.is_converted ? 'Converted' : 'Not Converte
 // Order here = order of table columns, the Columns dropdown and the CSV.
 // Cell markup lives in the template; `csv` is the plain-text value for export.
 const COLUMNS = [
-    { key: 'id', label: 'Id', default: true, csv: (l, index) => rowOffset.value + index + 1 },
-    { key: 'name', label: 'Name', locked: true, default: true, csv: (l) => l.full_name },
-    { key: 'email', label: 'Email', default: true, csv: (l) => l.email },
-    { key: 'phone', label: 'Phone number', default: true, csv: (l) => l.phone },
-    { key: 'owner', label: 'Lead Owner', default: true, csv: (l) => l.owner?.name },
-    { key: 'status', label: 'Lead Status', default: true, csv: (l) => l.status },
-    { key: 'value', label: 'Lead Value', default: true, csv: (l) => l.estimated_value },
-    { key: 'source', label: 'Lead Source', default: true, csv: (l) => leadSourceMeta[l.source]?.label ?? l.source },
-    { key: 'convert', label: 'Convert Status', default: true, csv: convertStatus },
-    { key: 'company', label: 'Company', default: false, csv: (l) => l.company },
-    { key: 'score', label: 'Score', default: false, csv: (l) => l.score },
-    { key: 'created_at', label: 'Created', default: false, csv: (l) => l.created_at },
-    { key: 'last_contacted_at', label: 'Last contacted', default: false, csv: (l) => l.last_contacted_at },
+    { key: 'id', label: 'Id', default: true },
+    { key: 'first_name', label: 'First name', locked: true, default: true },
+    { key: 'last_name', label: 'Last name', locked: true, default: true },
+    { key: 'email', label: 'Email', default: true },
+    { key: 'phone', label: 'Phone number', default: true },
+    { key: 'owner', label: 'Lead Owner', default: true },
+    { key: 'status', label: 'Lead Status', default: true },
+    { key: 'value', label: 'Lead Value', default: true },
+    { key: 'source', label: 'Lead Source', default: true },
+    { key: 'convert', label: 'Convert Status', default: true },
+    { key: 'company', label: 'Company', default: false },
+    { key: 'score', label: 'Score', default: false },
+    { key: 'created_at', label: 'Created', default: false },
+    { key: 'last_contacted_at', label: 'Last contacted', default: false },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -104,7 +110,8 @@ const activeFilterCount = computed(() => {
 /* Column visibility (persisted per browser)                                  */
 /* -------------------------------------------------------------------------- */
 
-const COLUMNS_STORAGE_KEY = 'leads.visibleColumns.v2';
+const COLUMNS_STORAGE_KEY = 'leads.visibleColumns.v3';
+const LOCKED_COLUMNS = COLUMNS.filter((c) => c.locked).map((c) => c.key);
 const columnsOpen = ref(false);
 const columnsRef = ref(null);
 
@@ -149,6 +156,7 @@ function closeMenu() {
 }
 
 function toggleMenu(event, lead) {
+    console.log(event, lead, menu)
     if (menu.value.lead?.id === lead.id) return closeMenu();
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -200,11 +208,10 @@ const printPage = () => window.print();
 
 // Exports the rows currently loaded (current page, current filters, visible columns).
 function exportCsv() {
-    const columns = shownColumns.value;
     downloadCsv(
         `leads-${new Date().toISOString().slice(0, 10)}.csv`,
-        columns.map((c) => c.label),
-        items.value.map((lead, index) => columns.map((c) => c.csv(lead, index))),
+        LEAD_CSV_COLUMNS,
+        items.value.map(leadToCsvRow),
     );
 }
 
@@ -246,6 +253,39 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', closeMenu);
     window.removeEventListener('scroll', closeMenu, true);
 });
+
+const route = useRoute();
+const router = useRouter();
+const drawer = reactive({ show: false, leadId: null });
+
+watch(
+    () => [route.name, route.params.id],
+    ([name, id]) => {
+        drawer.show = name === 'leads.create' || name === 'leads.edit';
+        if (drawer.show) drawer.leadId = name === 'leads.edit' ? String(id) : null;
+    },
+    { immediate: true },
+);
+
+function closeDrawer() {
+    router.replace({
+        name: 'leads.index',
+        query: route.query,
+    });
+}
+
+const refresh = () => Promise.all([load(), loadSummary()]); // reload rows + status counts
+// Create / edit: refresh the table. Close the drawer unless "Save & add another" was used.
+async function onLeadSaved(saved, { another } = {}) {
+    await refresh();
+}
+
+// CSV import: refresh the table, then close the drawer.
+async function onLeadsImported() {
+    await goToPage(1); // newest rows are on page 1
+    await loadSummary();
+}
+
 </script>
 
 <template>
@@ -426,7 +466,7 @@ onBeforeUnmount(() => {
                         <td v-if="isVisible('email')">{{ l.email ?? '—' }}</td>
                         <td v-if="isVisible('phone')">{{ l.phone ?? '—' }}</td>
                         <td v-if="isVisible('owner')">{{ l.owner?.name ?? '—' }}</td>
-                        <td v-if="isVisible('status')">{{ l.status }}</td>
+                        <td v-if="isVisible('status')"><StatusBadge kind="lead" :value="l.status" /></td>
                         <td v-if="isVisible('value')">{{ l.estimated_value ? money(l.estimated_value, l.currency) : '—' }}</td>
                         <td v-if="isVisible('source')">{{ leadSourceMeta[l.source]?.label ?? l.source }}</td>
                         <td v-if="isVisible('convert')">{{ convertStatus(l) }}</td>
@@ -456,6 +496,84 @@ onBeforeUnmount(() => {
         </div>
     </div>
 
+    <!-- =========================================================
+     CREATE / EDIT LEAD DRAWER
+========================================================= -->
+
+    <Teleport to="body">
+
+        <!-- Backdrop -->
+        <Transition name="drawer-fade">
+
+            <div
+                v-if="drawer.show"
+                class="lead-drawer-backdrop"
+                @click="closeDrawer"
+            ></div>
+
+        </Transition>
+
+
+        <!-- Drawer -->
+        <Transition name="drawer-slide">
+
+            <aside
+                v-if="drawer.show"
+                class="lead-drawer"
+                role="dialog"
+                aria-modal="true"
+                :aria-label="
+                    drawer.leadId
+                        ? 'Edit Lead'
+                        : 'Create Lead'
+                "
+                @click.stop
+            >
+
+                <!-- Drawer Header -->
+
+                <div class="lead-drawer-header">
+
+                    <div class="d-flex align-items-center gap-3">
+
+                        <button
+                            type="button"
+                            class="lead-drawer-close"
+                            aria-label="Close"
+                            @click="closeDrawer"
+                        >
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+
+                        <h2 class="lead-drawer-title mb-0">
+                            {{ drawer.leadId ? 'Edit Lead' : 'Create Lead' }}
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Drawer Body -->
+
+                <div class="lead-drawer-body">
+
+                    <LeadFormView
+                        :key="route.fullPath"
+                        :lead-id="drawer.leadId"
+                        :owners="owners"
+                        @saved="onLeadSaved"
+                        @imported="onLeadsImported"
+                        @cancel="closeDrawer"
+                    />
+
+                </div>
+
+            </aside>
+
+        </Transition>
+
+    </Teleport>
     <!-- Row actions menu -->
     <Teleport to="body">
         <ul
@@ -465,33 +583,67 @@ onBeforeUnmount(() => {
             :style="{ top: `${menu.top}px`, right: `${menu.right}px` }"
         >
             <li>
-                <RouterLink class="dropdown-item" role="menuitem" :to="{ name: 'leads.show', params: { id: menu.lead.id } }">
+                <RouterLink
+                    class="dropdown-item"
+                    role="menuitem"
+                    :to="{ name: 'leads.show', params: { id: menu.lead.id } }"
+                    @click="closeMenu"
+                >
                     <i class="bi bi-eye me-2"></i>View
                 </RouterLink>
             </li>
-            <template v-if="!menu.lead.is_converted">
-                <li>
-                    <RouterLink class="dropdown-item" role="menuitem" :to="{ name: 'leads.edit', params: { id: menu.lead.id } }">
-                        <i class="bi bi-pencil me-2"></i>Edit
-                    </RouterLink>
-                </li>
-                <li><hr class="dropdown-divider" /></li>
-                <li>
-                    <button type="button" class="dropdown-item text-danger" role="menuitem" @click="askDelete(menu.lead)">
-                        <i class="bi bi-trash me-2"></i>Delete
-                    </button>
-                </li>
-            </template>
+            <li v-if="!menu.lead.is_converted">
+                <RouterLink
+                    class="dropdown-item"
+                    role="menuitem"
+                    :to="{ name: 'leads.edit', params: { id: menu.lead.id } }"
+                    @click="closeMenu"
+                >
+                    <i class="bi bi-pencil me-2"></i>Edit
+                </RouterLink>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+            <li>
+                <button type="button" class="dropdown-item text-danger" role="menuitem">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </button>
+            </li>
         </ul>
     </Teleport>
 
-    <ConfirmModal
-        :show="!!toDelete"
-        title="Delete lead"
-        :message="`Delete ${toDelete?.full_name}?`"
-        :loading="deleting"
-        @confirm="confirmDelete"
-        @cancel="toDelete = null"
+    <Teleport to="body">
+        <ul
+            v-if="menu.lead"
+            class="dropdown-menu show row-menu shadow"
+            role="menu"
+            :style="{ top: `${menu.top}px`, right: `${menu.right}px` }"
+        >
+            <li>
+                <RouterLink class="dropdown-item" :to="{ name: 'leads.show', params: { id: menu.lead.id } }" @click="closeMenu">
+                    <i class="bi bi-eye me-2"></i>View
+                </RouterLink>
+            </li>
+            <li v-if="!menu.lead.is_converted">
+                <RouterLink class="dropdown-item" :to="{ name: 'leads.edit', params: { id: menu.lead.id } }" @click="closeMenu">
+                    <i class="bi bi-pencil me-2"></i>Edit
+                </RouterLink>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+            <li>
+                <button type="button" class="dropdown-item text-danger" @click="askDelete(menu.lead)">
+                    <i class="bi bi-trash me-2"></i>Delete
+                </button>
+            </li>
+        </ul>
+    </Teleport>
+
+    <DeleteConfirmModal
+            :show="!!toDelete"
+            title="Delete lead"
+            :message="`Delete ${toDelete?.full_name}?`"
+            :loading="deleting"
+            @confirm="confirmDelete"
+            @cancel="toDelete = null"
     />
 </template>
 
@@ -635,31 +787,6 @@ onBeforeUnmount(() => {
     text-decoration: underline;
 }
 
-/* The table list is its own scroll area (horizontal + vertical), so the page itself doesn't scroll. */
-.leads-scroll {
-    overflow: auto;
-    max-height: max(20rem, calc(100vh - 24rem));
-    scrollbar-width: thin;
-    scrollbar-color: #adb5bd transparent;
-}
-
-.leads-scroll::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-.leads-scroll::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.leads-scroll::-webkit-scrollbar-thumb {
-    background: #adb5bd;
-    border-radius: 999px;
-}
-
-.leads-scroll::-webkit-scrollbar-thumb:hover {
-    background: #868e96;
-}
 
 /* Row actions menu */
 .row-menu {
@@ -684,5 +811,170 @@ onBeforeUnmount(() => {
         overflow: visible !important;
         max-height: none !important;
     }
+}
+
+/* =========================================================
+   LEAD DRAWER
+========================================================= */
+
+.lead-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background: rgba(0, 0, 0, 0.48);
+}
+
+
+/* Drawer */
+
+.lead-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    width: min(760px, 52vw);
+    min-width: 520px;
+
+    z-index: 1050;
+
+    display: flex;
+    flex-direction: column;
+
+    background: #ffffff;
+
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
+
+    /* IMPORTANT */
+    overflow: hidden;
+}
+
+
+/* Header */
+.lead-drawer-header {
+    height: 72px;
+    flex: 0 0 72px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 28px;
+
+    background: #ffffff;
+
+    border-bottom: 1px solid #e5e7eb;
+}
+
+
+.lead-drawer-title {
+    font-size: 22px;
+
+    font-weight: 600;
+
+    color: #1f2937;
+}
+
+
+.lead-drawer-close {
+    width: 38px;
+    height: 38px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 0;
+
+    border-radius: 8px;
+
+    background: transparent;
+
+    color: #6b7280;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+}
+
+
+.lead-drawer-close:hover {
+    background: #f3f4f6;
+
+    color: #111827;
+}
+
+
+/* Body */
+
+/* Only this area scrolls */
+.lead-drawer-body {
+    flex: 1 1 auto;
+
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 28px;
+}
+
+
+/* Remove page/card styling from the form when it is inside drawer */
+
+.lead-drawer-body > * {
+    width: 100%;
+}
+
+
+/* =========================================================
+   TRANSITIONS
+========================================================= */
+
+.drawer-fade-enter-active,
+.drawer-fade-leave-active {
+    transition: opacity 0.25s ease;
+}
+
+.drawer-fade-enter-from,
+.drawer-fade-leave-to {
+    opacity: 0;
+}
+
+
+.drawer-slide-enter-active,
+.drawer-slide-leave-active {
+    transition: transform 0.28s ease;
+}
+
+.drawer-slide-enter-from,
+.drawer-slide-leave-to {
+    transform: translateX(100%);
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .lead-drawer {
+        width: 100%;
+
+        min-width: 0;
+    }
+
+    .lead-drawer-header {
+        padding: 0 20px;
+    }
+
+    .lead-drawer-body {
+        padding: 20px;
+    }
+
 }
 </style>

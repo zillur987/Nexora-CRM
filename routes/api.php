@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('users/options', UserOptionsController::class);
         Route::get('leads/summary', [LeadController::class, 'summary']);
+        Route::post('leads/import', [LeadController::class, 'import'])->middleware('throttle:10,1');
         Route::patch('leads/{lead}/status', [LeadController::class, 'changeStatus']);
         Route::post('leads/{lead}/convert', [LeadController::class, 'convert']);
         Route::apiResource('leads', LeadController::class);

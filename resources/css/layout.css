@@ -415,7 +415,14 @@ body {
   flex: 1 1 auto;
   padding: 0.75rem;
   overflow-y: auto;
-  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  /* Scrolls with wheel, trackpad or touch, but the scrollbar is hidden. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.crm-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .crm-nav-group + .crm-nav-group {
@@ -482,43 +489,6 @@ body {
   background: var(--crm-surface);
 }
 
-.crm-sidebar-foot {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-top: 1px solid var(--crm-border);
-}
-
-.crm-user {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  min-width: 0;
-  padding: 0.25rem 0.75rem;
-}
-
-.crm-user-meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
-}
-
-.crm-user-meta strong {
-  overflow: hidden;
-  font-size: var(--crm-fs);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.crm-user-meta small {
-  font-size: var(--crm-fs-xs);
-  color: var(--crm-text-muted);
-}
-
 /* Desktop: collapsed sidebar shows icons only */
 @media (min-width: 992px) {
   .crm-overlay {
@@ -545,8 +515,7 @@ body {
   .crm-sidebar.is-collapsed .crm-brand-name,
   .crm-sidebar.is-collapsed .crm-nav-text,
   .crm-sidebar.is-collapsed .crm-nav-badge,
-  .crm-sidebar.is-collapsed .crm-nav-label,
-  .crm-sidebar.is-collapsed .crm-user-meta {
+  .crm-sidebar.is-collapsed .crm-nav-label {
     display: none;
   }
 
@@ -558,11 +527,6 @@ body {
   .crm-sidebar.is-collapsed .crm-nav-link {
     justify-content: center;
     padding: 0;
-  }
-
-  .crm-sidebar.is-collapsed .crm-user {
-    justify-content: center;
-    padding: 0.25rem 0;
   }
 }
 
