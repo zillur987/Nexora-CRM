@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\Repositories\CompanyRepository;
 use App\Contracts\Repositories\ContactRepository;
 use App\Contracts\Repositories\DealRepository;
 use App\Contracts\Repositories\LeadRepository;
@@ -11,6 +12,7 @@ use App\Models\Contact;
 use App\Models\Deal;
 use App\Policies\ContactPolicy;
 use App\Policies\DealPolicy;
+use App\Repositories\EloquentCompanyRepository;
 use App\Repositories\EloquentContactRepository;
 use App\Repositories\EloquentDealRepository;
 use App\Repositories\EloquentLeadRepository;
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
 {
     /** Interface => implementation. Swap here (or in tests) without touching services. */
     public array $bindings = [
+        CompanyRepository::class => EloquentCompanyRepository::class,
         ContactRepository::class => EloquentContactRepository::class,
         DealRepository::class => EloquentDealRepository::class,
         LeadRepository::class => EloquentLeadRepository::class,

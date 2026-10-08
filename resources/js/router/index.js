@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const LeadList = () => import('@/views/leads/LeadListView.vue');
+const CompanyList = () => import('@/views/companies/CompanyListView.vue');
 
 const routes = [
     {
@@ -52,6 +53,37 @@ const routes = [
                 path: 'leads/:id/edit',
                 name: 'leads.edit',
                 component: LeadList,
+            },
+
+            // =====================================================
+            // COMPANIES
+            // =====================================================
+
+            {
+                path: 'companies',
+                name: 'companies.index',
+                component: CompanyList,
+            },
+
+            {
+                // Create / edit render the list with the drawer open (same pattern as leads).
+                path: 'companies/new',
+                name: 'companies.create',
+                component: CompanyList,
+            },
+
+            {
+                path: 'companies/:id',
+                name: 'companies.show',
+                component: () =>
+                    import('@/views/companies/CompanyDetailView.vue'),
+                props: true,
+            },
+
+            {
+                path: 'companies/:id/edit',
+                name: 'companies.edit',
+                component: CompanyList,
             },
 
             // =====================================================
