@@ -153,32 +153,9 @@ const routes = [
             {
                 path: 'pipelines',
                 name: 'pipelines.index',
-                component: () =>
-                    import('@/views/pipelines/PipelineListView.vue'),
+                component: () => import('@/views/pipelines/PipelineListView.vue'),
             },
 
-            {
-                path: 'pipelines/new',
-                name: 'pipelines.create',
-                component: () =>
-                    import('@/views/pipelines/PipelineFormView.vue'),
-            },
-
-            {
-                path: 'pipelines/:id/edit',
-                name: 'pipelines.edit',
-                component: () =>
-                    import('@/views/pipelines/PipelineFormView.vue'),
-                props: true,
-            },
-
-            {
-                path: 'pipelines/:id/board',
-                name: 'pipelines.board',
-                component: () =>
-                    import('@/views/pipelines/PipelineBoardView.vue'),
-                props: true,
-            },
         ],
     },
 

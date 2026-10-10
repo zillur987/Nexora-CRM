@@ -32,13 +32,6 @@ Route::prefix('v1')->group(function () {
         Route::post('leads/{lead}/convert', [LeadController::class, 'convert']);
         Route::apiResource('leads', LeadController::class);
 
-        Route::get('pipelines/{pipeline}/board', [PipelineController::class, 'board']);
-        Route::post('pipelines/{pipeline}/stages/reorder', [PipelineStageController::class, 'reorder']);
-        Route::post('pipelines/{pipeline}/stages', [PipelineStageController::class, 'store']);
-        Route::patch('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'update']);
-        Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
-        Route::apiResource('pipelines', PipelineController::class);
-
          // Companies (static routes first, then the {company} resource routes).
         Route::get('companies/summary', [CompanyController::class, 'summary']);
         Route::get('companies/options', [CompanyController::class, 'options']);
@@ -59,4 +52,12 @@ Route::prefix('v1')->group(function () {
         Route::get('deal-lookups/{lookup}', [DealLookupController::class, 'index']);
         Route::post('deal-lookups/{lookup}', [DealLookupController::class, 'store'])->middleware('throttle:30,1');
     });
+
+    Route::apiResource('pipelines', PipelineController::class);
+    Route::get('pipelines/{pipeline}/stages', [PipelineStageController::class, 'index']);
+    Route::post('pipelines/{pipeline}/stages', [PipelineStageController::class, 'store']);
+    Route::patch('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'update']);
+    Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
+
+    
 });
