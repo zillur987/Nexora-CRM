@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Deals\ChangeDealStageRequest;
 use App\Http\Requests\Deals\ListDealsRequest;
 use App\Http\Requests\Deals\StoreDealRequest;
 use App\Http\Requests\Deals\UpdateDealRequest;
@@ -25,9 +24,10 @@ class DealController extends Controller
         return DealResource::collection($this->service->list($request->validated()));
     }
 
-    public function pipeline(): JsonResponse
+    /** Deal count per stage (list tabs) and pipeline value per currency (KPI strip). */
+    public function summary(): JsonResponse
     {
-        return response()->json(['data' => $this->service->pipeline()]);
+        return response()->json(['data' => $this->service->summary()]);
     }
 
     public function store(StoreDealRequest $request): JsonResponse
@@ -39,17 +39,12 @@ class DealController extends Controller
 
     public function show(Deal $deal): DealResource
     {
-        return DealResource::make($deal->load('contact'));
+        return DealResource::make($deal->load(Deal::RELATIONS));
     }
 
     public function update(UpdateDealRequest $request, Deal $deal): DealResource
     {
         return DealResource::make($this->service->update($deal, $request->validated()));
-    }
-
-    public function changeStage(ChangeDealStageRequest $request, Deal $deal): DealResource
-    {
-        return DealResource::make($this->service->changeStage($deal, $request->stage()));
     }
 
     public function destroy(Deal $deal): Response

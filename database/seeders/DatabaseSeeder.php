@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
         $this->call(ContactLookupSeeder::class);
+        $this->call(DealLookupSeeder::class);
         User::factory()->create([
             'name' => 'Admin',
             'email' => 'zillurrahman3053@gmail.com',

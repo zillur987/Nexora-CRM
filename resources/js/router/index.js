@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 const LeadList = () => import('@/views/leads/LeadListView.vue');
 const CompanyList = () => import('@/views/companies/CompanyListView.vue');
 const ContactList = () => import('@/views/contacts/ContactListView.vue');
+const DealList = () => import('@/views/deals/DealListView.vue');
 
 const routes = [
     {
@@ -124,33 +125,27 @@ const routes = [
             {
                 path: 'deals',
                 name: 'deals.index',
-                component: () =>
-                    import('@/views/deals/DealListView.vue'),
+                component: DealList,
             },
 
             {
                 path: 'deals/new',
                 name: 'deals.create',
-                component: () =>
-                    import('@/views/deals/DealFormView.vue'),
+                component: DealList,
             },
 
             {
                 path: 'deals/:id',
                 name: 'deals.show',
-                component: () =>
-                    import('@/views/deals/DealDetailView.vue'),
+                component: () => import('@/views/deals/DealDetailView.vue'),
                 props: true,
             },
 
             {
                 path: 'deals/:id/edit',
                 name: 'deals.edit',
-                component: () =>
-                    import('@/views/deals/DealFormView.vue'),
-                props: true,
+                component: DealList,
             },
-
             // =====================================================
             // PIPELINES
             // =====================================================

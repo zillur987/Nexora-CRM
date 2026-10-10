@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\ContactLookupController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DealController;
+use App\Http\Controllers\Api\V1\DealLookupController;
 use App\Http\Controllers\Api\V1\LeadController;
 use App\Http\Controllers\Api\V1\PipelineController;
 use App\Http\Controllers\Api\V1\PipelineStageController;
@@ -24,10 +25,6 @@ Route::prefix('v1')->group(function () {
 
         Route::get('dashboard', DashboardController::class);
 
-        Route::get('deals/pipeline', [DealController::class, 'pipeline']);
-        Route::patch('deals/{deal}/stage', [DealController::class, 'changeStage']);
-        Route::apiResource('deals', DealController::class);
-
         Route::get('users/options', UserOptionsController::class);
         Route::get('leads/summary', [LeadController::class, 'summary']);
         Route::post('leads/import', [LeadController::class, 'import'])->middleware('throttle:10,1');
@@ -42,11 +39,6 @@ Route::prefix('v1')->group(function () {
         Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
         Route::apiResource('pipelines', PipelineController::class);
 
-        Route::get('deals/pipeline', [DealController::class, 'pipeline']);
-        Route::patch('deals/{deal}/pipeline-stage', [DealController::class, 'movePipelineStage']);
-        Route::patch('deals/{deal}/stage', [DealController::class, 'changeStage']);
-        Route::apiResource('deals', DealController::class);
-
          // Companies (static routes first, then the {company} resource routes).
         Route::get('companies/summary', [CompanyController::class, 'summary']);
         Route::get('companies/options', [CompanyController::class, 'options']);
@@ -60,5 +52,11 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('contacts', ContactController::class);
         Route::get('contact-lookups/{lookup}', [ContactLookupController::class, 'index']);
         Route::post('contact-lookups/{lookup}', [ContactLookupController::class, 'store'])->middleware('throttle:30,1');
+
+        // Deals
+        Route::get('deals/summary', [DealController::class, 'summary']);
+        Route::apiResource('deals', DealController::class);
+        Route::get('deal-lookups/{lookup}', [DealLookupController::class, 'index']);
+        Route::post('deal-lookups/{lookup}', [DealLookupController::class, 'store'])->middleware('throttle:30,1');
     });
 });

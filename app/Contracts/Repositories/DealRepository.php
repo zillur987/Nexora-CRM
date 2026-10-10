@@ -13,9 +13,6 @@ interface DealRepository
     /** @param array<string, mixed> $filters */
     public function paginate(array $filters): LengthAwarePaginator;
 
-    /** Loads the row with a pessimistic lock; must be called inside a transaction. */
-    public function findForUpdate(string $id): Deal;
-
     /** @param array<string, mixed> $data */
     public function create(array $data): Deal;
 
@@ -24,6 +21,13 @@ interface DealRepository
 
     public function delete(Deal $deal): void;
 
-    /** @return Collection<int, Deal> */
-    public function pipelineSummary(): Collection;
+    /** @return Collection<string|int, int|string> deal_stage_id => number of deals */
+    public function countByStage(): Collection;
+
+    /**
+     * Pipeline value per currency (amounts are never summed across currencies).
+     *
+     * @return Collection<int, object{currency: string, open_amount: string|float, weighted_amount: string|float, won_amount: string|float, open_count: string|int}>
+     */
+    public function totalsByCurrency(): Collection;
 }
