@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\DealLookupController;
 use App\Http\Controllers\Api\V1\LeadController;
 use App\Http\Controllers\Api\V1\PipelineController;
 use App\Http\Controllers\Api\V1\PipelineStageController;
+use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\UserOptionsController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,5 +60,7 @@ Route::prefix('v1')->group(function () {
     Route::patch('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'update']);
     Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
 
+    Route::get('products/lookups', [ProductController::class, 'lookups'])->name('products.lookups');
+    Route::apiResource('products', ProductController::class);
     
 });

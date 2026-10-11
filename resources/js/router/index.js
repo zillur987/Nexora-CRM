@@ -6,6 +6,7 @@ const LeadList = () => import('@/views/leads/LeadListView.vue');
 const CompanyList = () => import('@/views/companies/CompanyListView.vue');
 const ContactList = () => import('@/views/contacts/ContactListView.vue');
 const DealList = () => import('@/views/deals/DealListView.vue');
+const ProductList = () => import('@/views/products/ProductListView.vue');
 
 const routes = [
     {
@@ -154,6 +155,35 @@ const routes = [
                 path: 'pipelines',
                 name: 'pipelines.index',
                 component: () => import('@/views/pipelines/PipelineListView.vue'),
+            },
+
+            // =====================================================
+            // PRODUCTS
+            // =====================================================
+
+            {
+                path: 'products',
+                name: 'products.index',
+                component: ProductList,
+            },
+
+            {
+                path: 'products/new',
+                name: 'products.create',
+                component: ProductList,
+            },
+
+            {
+                path: 'products/:id',
+                name: 'products.show',
+                component: () => import('@/views/products/ProductDetailView.vue'),
+                props: true,
+            },
+
+            {
+                path: 'products/:id/edit',
+                name: 'products.edit',
+                component: ProductList,
             },
 
         ],

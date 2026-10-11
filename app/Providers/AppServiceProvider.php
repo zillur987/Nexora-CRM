@@ -8,6 +8,7 @@ use App\Contracts\Repositories\DealRepository;
 use App\Contracts\Repositories\LeadRepository;
 use App\Contracts\Repositories\PipelineRepository;
 use App\Contracts\Repositories\PipelineStageRepository;
+use App\Contracts\Repositories\ProductRepository;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Policies\ContactPolicy;
@@ -18,6 +19,7 @@ use App\Repositories\EloquentDealRepository;
 use App\Repositories\EloquentLeadRepository;
 use App\Repositories\EloquentPipelineRepository;
 use App\Repositories\EloquentPipelineStageRepository;
+use App\Repositories\EloquentProductRepository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
@@ -32,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
         DealRepository::class => EloquentDealRepository::class,
         LeadRepository::class => EloquentLeadRepository::class,
         PipelineRepository::class => EloquentPipelineRepository::class,
-        PipelineStageRepository::class => EloquentPipelineStageRepository::class,
+        ProductRepository::class => EloquentProductRepository::class
     ];
 
     /**
