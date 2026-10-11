@@ -7,6 +7,7 @@ const CompanyList = () => import('@/views/companies/CompanyListView.vue');
 const ContactList = () => import('@/views/contacts/ContactListView.vue');
 const DealList = () => import('@/views/deals/DealListView.vue');
 const ProductList = () => import('@/views/products/ProductListView.vue');
+const QuoteList = () => import('@/views/quotes/QuoteListView.vue');
 
 const routes = [
     {
@@ -185,6 +186,36 @@ const routes = [
                 name: 'products.edit',
                 component: ProductList,
             },
+
+            // =====================================================
+            // QUOTES
+            // =====================================================
+
+            {
+                path: 'quotes',
+                name: 'quotes.index',
+                component: QuoteList,
+            },
+
+            {
+                path: 'quotes/new',
+                name: 'quotes.create',
+                component: QuoteList,
+            },
+
+            {
+                path: 'quotes/:id',
+                name: 'quotes.show',
+                component: () => import('@/views/quotes/QuoteDetailView.vue'),
+                props: true,
+            },
+
+            {
+                path: 'quotes/:id/edit',
+                name: 'quotes.edit',
+                component: QuoteList,
+            },
+
 
         ],
     },

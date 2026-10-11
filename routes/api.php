@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\LeadController;
 use App\Http\Controllers\Api\V1\PipelineController;
 use App\Http\Controllers\Api\V1\PipelineStageController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\QuoteController;
 use App\Http\Controllers\Api\V1\UserOptionsController;
 use Illuminate\Support\Facades\Route;
 
@@ -62,5 +63,9 @@ Route::prefix('v1')->group(function () {
 
     Route::get('products/lookups', [ProductController::class, 'lookups'])->name('products.lookups');
     Route::apiResource('products', ProductController::class);
-    
+
+    // Quotes
+    Route::get('quotes/summary', [QuoteController::class, 'summary'])->name('quotes.summary');
+    Route::post('quotes/{quote}/status', [QuoteController::class, 'updateStatus'])->name('quotes.status');
+    Route::apiResource('quotes', QuoteController::class);
 });
