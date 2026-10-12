@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\PipelineStageController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\QuoteController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\UserAccessController;
 use App\Http\Controllers\Api\V1\UserOptionsController;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +72,20 @@ Route::prefix('v1')->group(function () {
         Route::get('quotes/summary', [QuoteController::class, 'summary'])->name('quotes.summary');
         Route::post('quotes/{quote}/status', [QuoteController::class, 'updateStatus'])->name('quotes.status');
         Route::apiResource('quotes', QuoteController::class);
+
+        Route::get('tasks/lookups', [TaskController::class, 'lookups'])->middleware('permission:tasks.view,tasks.create,tasks.edit')->name('tasks.lookups');
+        Route::get('tasks/summary', [TaskController::class, 'summary'])->middleware('permission:tasks.view')->name('tasks.summary');
+        Route::get('tasks', [TaskController::class, 'index'])->middleware('permission:tasks.view')->name('tasks.index');
+        Route::post('tasks', [TaskController::class, 'store'])->middleware('permission:tasks.create')->name('tasks.store');
+        Route::get('tasks/{task}', [TaskController::class, 'show'])->middleware('permission:tasks.view')->name('tasks.show');
+        Route::patch('tasks/{task}', [TaskController::class, 'update'])->middleware('permission:tasks.edit')->name('tasks.update');
+        Route::delete('tasks/{task}', [TaskController::class, 'destroy'])->middleware('permission:tasks.delete')->name('tasks.destroy');
+
+        // "+" beside Task Type / Priority / Status
+        Route::post('task-options/{kind}', [TaskController::class, 'storeOption'])
+            ->whereIn('kind', ['type', 'priority', 'status'])
+            ->middleware('permission:tasks.create,tasks.edit')
+            ->name('tasks.options.store');
 
         // Current user's access (no permission needed: the SPA needs it to know what to show).
         Route::get('auth/permissions', [MyAccessController::class, 'show'])->name('auth.permissions');

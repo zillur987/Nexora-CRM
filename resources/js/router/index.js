@@ -12,6 +12,7 @@ const QuoteList = () => import('@/views/quotes/QuoteListView.vue');
 const RoleList = () => import('@/views/roles/RoleListView.vue');
 const UserAccessList = () => import('@/views/users/UserAccessView.vue');
 const Forbidden = () => import('@/views/errors/ForbiddenView.vue');
+const TaskList = () => import('@/views/tasks/TaskListView.vue');
 
 const routes = [
     {
@@ -219,6 +220,15 @@ const routes = [
                 name: 'quotes.edit',
                 component: QuoteList,
             },
+
+            // =====================================================
+            // TASKS
+            // =====================================================
+
+            { path: 'tasks', name: 'tasks.index', component: TaskList, meta: { permission: 'tasks.view' } },
+            { path: 'tasks/new', name: 'tasks.create', component: TaskList, meta: { permission: 'tasks.create' } },
+            { path: 'tasks/:id', name: 'tasks.show', component: TaskList, meta: { permission: 'tasks.view' } },
+            { path: 'tasks/:id/edit', name: 'tasks.edit', component: TaskList, meta: { permission: 'tasks.edit' } },
 
             // =====================================================
             // ROLES & PERMISSIONS

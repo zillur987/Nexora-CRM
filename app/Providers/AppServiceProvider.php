@@ -11,6 +11,7 @@ use App\Contracts\Repositories\PipelineStageRepository;
 use App\Contracts\Repositories\ProductRepository;
 use App\Contracts\Repositories\QuoteRepository;
 use App\Contracts\Repositories\RoleRepository;
+use App\Contracts\Repositories\TaskRepository;
 use App\Models\Contact;
 use App\Models\Deal;
 use App\Policies\ContactPolicy;
@@ -24,6 +25,7 @@ use App\Repositories\EloquentPipelineStageRepository;
 use App\Repositories\EloquentProductRepository;
 use App\Repositories\EloquentQuoteRepository;
 use App\Repositories\EloquentRoleRepository;
+use App\Repositories\EloquentTaskRepository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
@@ -40,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
         PipelineRepository::class => EloquentPipelineRepository::class,
         ProductRepository::class => EloquentProductRepository::class,
         QuoteRepository::class => EloquentQuoteRepository::class,
+        TaskRepository::class => EloquentTaskRepository::class,
     ];
 
     /**

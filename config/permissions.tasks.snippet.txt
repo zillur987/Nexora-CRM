@@ -1,0 +1,12 @@
+<?php
+// Merge into config/permissions.php, then run:  php artisan rbac:sync
+
+// 1) Inside 'modules' => [ ... ]
+'tasks' => ['label' => 'Tasks', 'icon' => 'bi-list-check', 'actions' => ['view', 'create', 'edit', 'delete']],
+
+// 2) Inside 'default_roles' (these only apply to roles created AFTER this change; roles that already exist
+//    are never overwritten, so grant Tasks to existing roles on the Roles & Permissions screen).
+//    manager   -> add 'tasks.*'
+//    sales-rep -> add 'tasks.view', 'tasks.create', 'tasks.edit'
+//    viewer    -> add 'tasks.view'
+//    admin / super-admin already use '*'.
