@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Route guard.   ->middleware('permission:products.view')
+ * Several names mean "any of":   ->middleware('permission:roles.create,roles.edit')
+ */
+class CheckPermission
+{
+    public function handle(Request $request, Closure $next, string ...$permissions): Response
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if (! $user->hasAnyPermission(...$permissions)) {
+            return response()->json([
+                'message' => 'You do not have permission to do that.',
+                'required' => $permissions,
+            ], 403);
+        }
+
+        return $next($request);
+    }
+}

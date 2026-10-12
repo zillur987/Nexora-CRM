@@ -11,10 +11,14 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\DealLookupController;
 use App\Http\Controllers\Api\V1\LeadController;
+use App\Http\Controllers\Api\V1\MyAccessController;
+use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PipelineController;
 use App\Http\Controllers\Api\V1\PipelineStageController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\QuoteController;
+use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\UserAccessController;
 use App\Http\Controllers\Api\V1\UserOptionsController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,19 +57,41 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('deals', DealController::class);
         Route::get('deal-lookups/{lookup}', [DealLookupController::class, 'index']);
         Route::post('deal-lookups/{lookup}', [DealLookupController::class, 'store'])->middleware('throttle:30,1');
+
+        Route::apiResource('pipelines', PipelineController::class);
+        Route::get('pipelines/{pipeline}/stages', [PipelineStageController::class, 'index']);
+        Route::post('pipelines/{pipeline}/stages', [PipelineStageController::class, 'store']);
+        Route::patch('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'update']);
+        Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
+
+        Route::get('products/lookups', [ProductController::class, 'lookups'])->name('products.lookups');
+        Route::apiResource('products', ProductController::class);
+
+        // Quotes
+        Route::get('quotes/summary', [QuoteController::class, 'summary'])->name('quotes.summary');
+        Route::post('quotes/{quote}/status', [QuoteController::class, 'updateStatus'])->name('quotes.status');
+        Route::apiResource('quotes', QuoteController::class);
+
+        // Current user's access (no permission needed: the SPA needs it to know what to show).
+        Route::get('auth/permissions', [MyAccessController::class, 'show'])->name('auth.permissions');
+
+        // Roles
+        Route::get('roles/summary', [RoleController::class, 'summary'])->middleware('permission:roles.view')->name('roles.summary');
+        Route::get('roles', [RoleController::class, 'index'])->middleware('permission:roles.view')->name('roles.index');
+        Route::post('roles', [RoleController::class, 'store'])->middleware('permission:roles.create')->name('roles.store');
+        Route::get('roles/{role}', [RoleController::class, 'show'])->middleware('permission:roles.view')->name('roles.show');
+        Route::patch('roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit')->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete')->name('roles.destroy');
+
+        // Permission matrix (needed by the role form)
+        Route::get('permissions', [PermissionController::class, 'index'])->middleware('permission:roles.view,roles.create,roles.edit')->name('permissions.index');
+
+        // User access (assign roles to users)
+        Route::get('access/users/summary', [UserAccessController::class, 'summary'])->middleware('permission:users.view')->name('access.users.summary');
+        Route::get('access/users/lookups', [UserAccessController::class, 'lookups'])->middleware('permission:users.view')->name('access.users.lookups');
+        Route::get('access/users', [UserAccessController::class, 'index'])->middleware('permission:users.view')->name('access.users.index');
+        Route::get('access/users/{user}', [UserAccessController::class, 'show'])->middleware('permission:users.view')->name('access.users.show');
+        Route::put('access/users/{user}/roles', [UserAccessController::class, 'updateRoles'])->middleware('permission:users.edit')->name('access.users.roles');
     });
 
-    Route::apiResource('pipelines', PipelineController::class);
-    Route::get('pipelines/{pipeline}/stages', [PipelineStageController::class, 'index']);
-    Route::post('pipelines/{pipeline}/stages', [PipelineStageController::class, 'store']);
-    Route::patch('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'update']);
-    Route::delete('pipelines/{pipeline}/stages/{stage}', [PipelineStageController::class, 'destroy']);
-
-    Route::get('products/lookups', [ProductController::class, 'lookups'])->name('products.lookups');
-    Route::apiResource('products', ProductController::class);
-
-    // Quotes
-    Route::get('quotes/summary', [QuoteController::class, 'summary'])->name('quotes.summary');
-    Route::post('quotes/{quote}/status', [QuoteController::class, 'updateStatus'])->name('quotes.status');
-    Route::apiResource('quotes', QuoteController::class);
 });

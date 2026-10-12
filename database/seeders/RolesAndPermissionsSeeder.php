@@ -1,26 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
+use App\Services\Rbac\PermissionSynchronizer;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    public function run(): void
+    public function run(PermissionSynchronizer $sync): void
     {
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        $sync->syncPermissions();     // permissions first so default roles can reference them
+        $sync->seedDefaultRoles();
+        $sync->syncPermissions();     // second pass attaches the full registry to super-admin
 
-        $permissions = collect(['contacts', 'companies', 'deals'])
-            ->flatMap(fn ($m) => collect(['view', 'view_all', 'create', 'update', 'update_all', 'delete'])
-                ->map(fn ($a) => "{$m}.{$a}"))
-            ->each(fn ($p) => Permission::findOrCreate($p, 'web'));
-
-        Role::findOrCreate('admin', 'web')->syncPermissions($permissions);
-        Role::findOrCreate('sales_rep', 'web')->syncPermissions([
-            'contacts.view', 'contacts.create', 'contacts.update',
-            'companies.view', 'companies.create','deals.view', 'deals.create', 'deals.update',
-        ]);
+        // Make the first user a Super Admin so nobody is locked out after installing.
+        $first = config('auth.providers.users.model')::query()->orderBy('id')->first();
+        $super = \App\Models\Role::query()->where('slug', config('permissions.super_admin_role'))->first();
+        if ($first && $super && ! $super->users()->exists()) {
+            $first->roles()->syncWithoutDetaching([$super->id]);
+        }
     }
 }

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { usePermissionStore } from '@/stores/permissions';
 
 const LeadList = () => import('@/views/leads/LeadListView.vue');
 const CompanyList = () => import('@/views/companies/CompanyListView.vue');
@@ -8,6 +9,9 @@ const ContactList = () => import('@/views/contacts/ContactListView.vue');
 const DealList = () => import('@/views/deals/DealListView.vue');
 const ProductList = () => import('@/views/products/ProductListView.vue');
 const QuoteList = () => import('@/views/quotes/QuoteListView.vue');
+const RoleList = () => import('@/views/roles/RoleListView.vue');
+const UserAccessList = () => import('@/views/users/UserAccessView.vue');
+const Forbidden = () => import('@/views/errors/ForbiddenView.vue');
 
 const routes = [
     {
@@ -215,6 +219,51 @@ const routes = [
                 name: 'quotes.edit',
                 component: QuoteList,
             },
+
+            // =====================================================
+            // ROLES & PERMISSIONS
+            // =====================================================
+
+            { path: 'roles', name: 'roles.index', component: RoleList, meta: { permission: 'roles.view' } },
+            { path: 'roles/new', name: 'roles.create', component: RoleList, meta: { permission: 'roles.create' } },
+            { path: 'roles/:id', name: 'roles.show', component: RoleList, meta: { permission: 'roles.view' } },
+            { path: 'roles/:id/edit', name: 'roles.edit', component: RoleList, meta: { permission: 'roles.edit' } },
+
+            // =====================================================
+            // USER ACCESS
+            // =====================================================
+
+            { path: 'access/users', name: 'access.users', component: UserAccessList, meta: { permission: 'users.view' } },
+            { path: 'access/users/:id/roles', name: 'access.users.edit', component: UserAccessList, meta: { permission: 'users.edit' } },
+
+            // =====================================================
+            // 403 page
+            // =====================================================
+
+            { path: 'forbidden', name: 'forbidden', component: Forbidden },
+
+            // 3) Also tag the existing module routes, e.g. products:
+            //      { path: 'products', name: 'products.index', component: ProductList, meta: { permission: 'products.view' } },
+            //      { path: 'products/new', ..., meta: { permission: 'products.create' } },
+            //      { path: 'products/:id', ..., meta: { permission: 'products.view' } },
+            //      { path: 'products/:id/edit', ..., meta: { permission: 'products.edit' } },
+
+            // 4) Global guard: place AFTER your existing authentication guard.
+            //
+            // router.beforeEach(async (to) => {
+            //     const needs = to.meta.permission;
+            //     if (!needs) return true;
+            //
+            //     const access = usePermissionStore();
+            //     try {
+            //         await access.load();
+            //     } catch {
+            //         return true; // could not load: let the API decide (it returns 401/403 itself)
+            //     }
+            //
+            //     return access.canAny(...[].concat(needs)) ? true : { name: 'forbidden', query: { from: to.fullPath } };
+            // });
+
 
 
         ],
