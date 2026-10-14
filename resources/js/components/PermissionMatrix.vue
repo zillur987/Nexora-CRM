@@ -9,6 +9,8 @@ const props = defineProps({
     readonly: { type: Boolean, default: false },
     /** Shows everything as granted and not editable (Super Admin). */
     locked: { type: Boolean, default: false },
+    /** Permission ids already granted by something else (e.g. the user's roles): shown ticked and not changeable here. */
+    inherited: { type: Array, default: () => [] },
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -22,18 +24,20 @@ const columns = computed(() => {
 });
 
 const cell = (group, action) => group.permissions.find((p) => p.action === action) ?? null;
-const isOn = (id) => props.locked || selected.value.has(id);
+const inheritedSet = computed(() => new Set(props.inherited));
+const isInherited = (id) => inheritedSet.value.has(id);
+const isOn = (id) => props.locked || selected.value.has(id) || inheritedSet.value.has(id);
 const disabled = computed(() => props.readonly || props.locked);
 
 const totalCount = computed(() => props.groups.reduce((n, g) => n + g.permissions.length, 0));
-const selectedCount = computed(() => (props.locked ? totalCount.value : props.groups.reduce((n, g) => n + g.permissions.filter((p) => selected.value.has(p.id)).length, 0)));
+const selectedCount = computed(() => (props.locked ? totalCount.value : props.groups.reduce((n, g) => n + g.permissions.filter((p) => isOn(p.id)).length, 0)));
 
 function commit(next) {
     emit('update:modelValue', [...next]);
 }
 
 function toggle(id) {
-    if (disabled.value) return;
+    if (disabled.value || isInherited(id)) return;
     const next = new Set(selected.value);
     next.has(id) ? next.delete(id) : next.add(id);
     commit(next);
@@ -42,7 +46,10 @@ function toggle(id) {
 function setMany(ids, on) {
     if (disabled.value) return;
     const next = new Set(selected.value);
-    for (const id of ids) on ? next.add(id) : next.delete(id);
+    for (const id of ids) {
+        if (isInherited(id)) continue;
+        on ? next.add(id) : next.delete(id);
+    }
     commit(next);
 }
 
@@ -51,7 +58,7 @@ const columnIds = (action) => props.groups.flatMap((g) => g.permissions.filter((
 
 function state(ids) {
     if (props.locked) return { checked: true, indeterminate: false };
-    const on = ids.filter((id) => selected.value.has(id)).length;
+    const on = ids.filter((id) => isOn(id)).length;
     return { checked: ids.length > 0 && on === ids.length, indeterminate: on > 0 && on < ids.length };
 }
 
@@ -132,7 +139,8 @@ const toggleAll = (event) => setMany(props.groups.flatMap(rowIds), event.target.
                                 type="checkbox"
                                 class="form-check-input"
                                 :checked="isOn(cell(g, col.action).id)"
-                                :disabled="disabled"
+                                :disabled="disabled || isInherited(cell(g, col.action).id)"
+                                :title="isInherited(cell(g, col.action).id) ? 'Granted by one of the selected roles' : null"
                                 :aria-label="`${col.label} ${g.label}`"
                                 @change="toggle(cell(g, col.action).id)"
                             />

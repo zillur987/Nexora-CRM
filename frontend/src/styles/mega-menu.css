@@ -1,0 +1,116 @@
+/* ---------- Mega menu (dark panel) ----------
+   Header turns solid dark (see --hdr-solid-bg in tokens.css) while a panel is open: .is-mega-open */
+
+.has-mega > .mega-toggle { display: none; }
+
+.mega {
+  --mega-bg: var(--hdr-solid-bg);
+  --mega-fg: var(--hdr-solid-fg);
+  background: var(--mega-bg);
+  color: var(--mega-fg);
+}
+
+/* shared type */
+.mega__title,
+.mega__heading,
+.mega__feature-label,
+.mega__cta {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: var(--tracking-xwide);
+  text-transform: uppercase;
+}
+.mega__heading { margin: 0 0 1.5rem; }
+.mega__col ul { list-style: none; margin: 0; padding: 0; }
+.mega__col li + li { margin-top: 1.1rem; }
+.mega__col a { display: block; }
+.mega__name {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: color var(--dur) var(--ease);
+}
+.mega__sub { display: block; margin-top: .2rem; font-size: .9rem; color: var(--c-muted); }
+.mega__col a:hover .mega__name,
+.mega__col a:focus-visible .mega__name { color: var(--c-gold); }
+
+/* title row: TITLE ———— meta */
+.mega__head { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 3rem; }
+.mega__rule { flex: 1; height: 1px; background: var(--c-line); }
+.mega__meta { font-size: 1rem; color: var(--c-muted); }
+
+/* featured tile */
+.mega__feature { display: grid; align-content: start; }
+.mega__img {
+  display: block;
+  aspect-ratio: 16 / 10.5;
+  background: var(--c-ink) center / cover no-repeat;
+  overflow: hidden;
+}
+.mega__img--a { background-image: linear-gradient(160deg, #5b6b9a 0%, #c98a6a 55%, #1a1f33 100%); }
+.mega__img--b { background-image: linear-gradient(160deg, #3d5a63 0%, #b59a6a 55%, #14201f 100%); }
+.mega__feature-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; }
+.mega__cta { padding-bottom: .35rem; border-bottom: 1px solid currentColor; }
+.mega__feature-title { margin-top: .5rem; font-family: var(--ff-display); font-size: 2.1rem; font-weight: 500; line-height: 1.1; }
+.mega__feature-sub { margin-top: .6rem; color: var(--c-muted); }
+.mega__feature:hover .mega__cta { color: var(--c-gold); }
+
+/* ===== Desktop ===== */
+@media (min-width: 1200px) {
+  /* Positioned against .navbar: full width, directly under the header bar */
+  .mega {
+    position: absolute;
+    inset: 100% 0 auto 0;
+    max-height: calc(100vh - var(--header-h));
+    overflow-y: auto;
+    border-top: 1px solid var(--c-line);
+    box-shadow: 0 30px 50px -20px rgba(0, 0, 0, .6);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease),
+                visibility 0s linear var(--dur);
+  }
+  .has-mega.is-open > .mega {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+  .has-mega.is-open > .nav-link::after { transform: scaleX(1); }
+
+  .mega__inner {
+    max-width: calc(var(--bar-max) + var(--gutter) * 2);
+    margin-inline: auto;
+    padding: 2.75rem var(--gutter) 3.5rem;
+  }
+  .mega__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(18rem, 26rem);
+    gap: clamp(2rem, 4vw, 4.5rem);
+  }
+}
+
+/* ===== Mobile / tablet: accordion inside the offcanvas ===== */
+@media (max-width: 1199.98px) {
+  .has-mega { display: flex; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--c-line); }
+  .has-mega > .nav-link { flex: 1; border-bottom: 0 !important; }
+  .has-mega > .mega-toggle {
+    display: grid; place-items: center;
+    width: 2.75rem; height: 2.75rem;
+    background: none; border: 0; color: inherit;
+  }
+  .mega-toggle i { transition: transform var(--dur) var(--ease); }
+  .has-mega.is-open .mega-toggle i { transform: rotate(180deg); }
+
+  .mega { display: none; flex-basis: 100%; background: transparent; }
+  .has-mega.is-open > .mega { display: block; }
+  .mega__head, .mega__feature { display: none; }
+  .mega__grid { display: grid; gap: 1.25rem; padding: .25rem 0 1.25rem; }
+  .mega__heading { margin-bottom: .75rem; opacity: .6; }
+  .mega__name { font-size: 1.05rem; }
+  .mega__sub { font-size: .8rem; }
+}

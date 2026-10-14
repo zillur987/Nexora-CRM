@@ -15,6 +15,9 @@ class UpdateUserRolesRequest extends FormRequest
         return [
             'role_ids' => ['present', 'array'],
             'role_ids.*' => ['integer', 'distinct', 'exists:roles,id'],
+            // Optional: extra permissions for this user on top of their roles. Omit to leave them unchanged.
+            'permission_ids' => ['sometimes', 'array'],
+            'permission_ids.*' => ['integer', 'distinct', 'exists:permissions,id'],
         ];
     }
 }

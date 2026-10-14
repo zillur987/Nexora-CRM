@@ -19,6 +19,8 @@ class UserAccessResource extends JsonResource
             'email' => $this->email,
             'roles' => $roles->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'slug' => $r->slug])->values(),
             'role_ids' => $roles->pluck('id')->values(),
+            // Extra permissions given straight to this user (not via a role).
+            'permission_ids' => $this->relationLoaded('directPermissions') ? $this->directPermissions->pluck('id')->values() : [],
             'is_super_admin' => $roles->contains(fn ($r) => $r->slug === config('permissions.super_admin_role')),
             'created_at' => $this->created_at?->toISOString(),
         ];

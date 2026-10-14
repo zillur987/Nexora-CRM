@@ -31,6 +31,7 @@ const routes = [
             {
                 path: '',
                 name: 'dashboard',
+                meta: { permission: 'dashboard.view' },
                 component: () => import('@/views/DashboardView.vue'),
             },
 
@@ -41,18 +42,21 @@ const routes = [
             {
                 path: 'leads',
                 name: 'leads.index',
+                meta: { permission: 'leads.view' },
                 component: LeadList,
             },
 
             {
                 path: 'leads/new',
                 name: 'leads.create',
+                meta: { permission: 'leads.create' },
                 component: LeadList,
             },
 
             {
                 path: 'leads/:id',
                 name: 'leads.show',
+                meta: { permission: 'leads.view' },
                 component: () =>
                     import('@/views/leads/LeadDetailView.vue'),
                 props: true,
@@ -61,6 +65,7 @@ const routes = [
             {
                 path: 'leads/:id/edit',
                 name: 'leads.edit',
+                meta: { permission: 'leads.edit' },
                 component: LeadList,
             },
 
@@ -71,6 +76,7 @@ const routes = [
             {
                 path: 'companies',
                 name: 'companies.index',
+                meta: { permission: 'companies.view' },
                 component: CompanyList,
             },
 
@@ -78,12 +84,14 @@ const routes = [
                 // Create / edit render the list with the drawer open (same pattern as leads).
                 path: 'companies/new',
                 name: 'companies.create',
+                meta: { permission: 'companies.create' },
                 component: CompanyList,
             },
 
             {
                 path: 'companies/:id',
                 name: 'companies.show',
+                meta: { permission: 'companies.view' },
                 component: () =>
                     import('@/views/companies/CompanyDetailView.vue'),
                 props: true,
@@ -92,6 +100,7 @@ const routes = [
             {
                 path: 'companies/:id/edit',
                 name: 'companies.edit',
+                meta: { permission: 'companies.edit' },
                 component: CompanyList,
             },
 
@@ -102,18 +111,21 @@ const routes = [
             {
                 path: 'contacts',
                 name: 'contacts.index',
+                meta: { permission: 'contacts.view' },
                 component: ContactList,
             },
 
             {
                 path: 'contacts/new',
                 name: 'contacts.create',
+                meta: { permission: 'contacts.create' },
                 component: ContactList,
             },
 
             {
                 path: 'contacts/:id',
                 name: 'contacts.show',
+                meta: { permission: 'contacts.view' },
                 component: () => import('@/views/contacts/ContactDetailView.vue'),
                 props: true,
             },
@@ -121,6 +133,7 @@ const routes = [
             {
                 path: 'contacts/:id/edit',
                 name: 'contacts.edit',
+                meta: { permission: 'contacts.edit' },
                 component: ContactList,
             },
 
@@ -132,18 +145,21 @@ const routes = [
             {
                 path: 'deals',
                 name: 'deals.index',
+                meta: { permission: 'deals.view' },
                 component: DealList,
             },
 
             {
                 path: 'deals/new',
                 name: 'deals.create',
+                meta: { permission: 'deals.create' },
                 component: DealList,
             },
 
             {
                 path: 'deals/:id',
                 name: 'deals.show',
+                meta: { permission: 'deals.view' },
                 component: () => import('@/views/deals/DealDetailView.vue'),
                 props: true,
             },
@@ -151,6 +167,7 @@ const routes = [
             {
                 path: 'deals/:id/edit',
                 name: 'deals.edit',
+                meta: { permission: 'deals.edit' },
                 component: DealList,
             },
             // =====================================================
@@ -160,6 +177,7 @@ const routes = [
             {
                 path: 'pipelines',
                 name: 'pipelines.index',
+                meta: { permission: 'pipelines.view' },
                 component: () => import('@/views/pipelines/PipelineListView.vue'),
             },
 
@@ -170,18 +188,21 @@ const routes = [
             {
                 path: 'products',
                 name: 'products.index',
+                meta: { permission: 'products.view' },
                 component: ProductList,
             },
 
             {
                 path: 'products/new',
                 name: 'products.create',
+                meta: { permission: 'products.create' },
                 component: ProductList,
             },
 
             {
                 path: 'products/:id',
                 name: 'products.show',
+                meta: { permission: 'products.view' },
                 component: () => import('@/views/products/ProductDetailView.vue'),
                 props: true,
             },
@@ -189,6 +210,7 @@ const routes = [
             {
                 path: 'products/:id/edit',
                 name: 'products.edit',
+                meta: { permission: 'products.edit' },
                 component: ProductList,
             },
 
@@ -199,18 +221,21 @@ const routes = [
             {
                 path: 'quotes',
                 name: 'quotes.index',
+                meta: { permission: 'quotes.view' },
                 component: QuoteList,
             },
 
             {
                 path: 'quotes/new',
                 name: 'quotes.create',
+                meta: { permission: 'quotes.create' },
                 component: QuoteList,
             },
 
             {
                 path: 'quotes/:id',
                 name: 'quotes.show',
+                meta: { permission: 'quotes.view' },
                 component: () => import('@/views/quotes/QuoteDetailView.vue'),
                 props: true,
             },
@@ -218,6 +243,7 @@ const routes = [
             {
                 path: 'quotes/:id/edit',
                 name: 'quotes.edit',
+                meta: { permission: 'quotes.edit' },
                 component: QuoteList,
             },
 
@@ -245,37 +271,13 @@ const routes = [
 
             { path: 'access/users', name: 'access.users', component: UserAccessList, meta: { permission: 'users.view' } },
             { path: 'access/users/:id/roles', name: 'access.users.edit', component: UserAccessList, meta: { permission: 'users.edit' } },
+             { path: 'access/users/new', name: 'access.users.create', component: UserAccessList, meta: { permission: 'users.create' } },
 
             // =====================================================
             // 403 page
             // =====================================================
 
             { path: 'forbidden', name: 'forbidden', component: Forbidden },
-
-            // 3) Also tag the existing module routes, e.g. products:
-            //      { path: 'products', name: 'products.index', component: ProductList, meta: { permission: 'products.view' } },
-            //      { path: 'products/new', ..., meta: { permission: 'products.create' } },
-            //      { path: 'products/:id', ..., meta: { permission: 'products.view' } },
-            //      { path: 'products/:id/edit', ..., meta: { permission: 'products.edit' } },
-
-            // 4) Global guard: place AFTER your existing authentication guard.
-            //
-            // router.beforeEach(async (to) => {
-            //     const needs = to.meta.permission;
-            //     if (!needs) return true;
-            //
-            //     const access = usePermissionStore();
-            //     try {
-            //         await access.load();
-            //     } catch {
-            //         return true; // could not load: let the API decide (it returns 401/403 itself)
-            //     }
-            //
-            //     return access.canAny(...[].concat(needs)) ? true : { name: 'forbidden', query: { from: to.fullPath } };
-            // });
-
-
-
         ],
     },
 
@@ -290,7 +292,17 @@ const router = createRouter({
     routes,
 });
 
-router.beforeEach((to) => {
+/** First page the signed-in user is allowed to open (used when they land somewhere they may not see). */
+function firstAllowedRoute(access) {
+    const home = router
+        .getRoutes()
+        .filter((r) => r.meta.permission && (r.name === 'dashboard' || String(r.name).endsWith('.index') || r.name === 'access.users'))
+        .find((r) => access.canAny(...[].concat(r.meta.permission)));
+
+    return home ? { name: home.name } : null;
+}
+
+router.beforeEach(async (to) => {
     const auth = useAuthStore();
 
     if (
@@ -305,11 +317,34 @@ router.beforeEach((to) => {
         };
     }
 
-    if (to.meta.guest && auth.isAuthenticated) {
-        return {
-            name: 'dashboard',
-        };
+    if (to.meta.guest) {
+        if (auth.isAuthenticated) return { name: 'dashboard' };
+
+        // Signed out: forget the previous user's access so the next login starts clean.
+        usePermissionStore().reset();
+        return true;
     }
+
+    // Permission check: runs after authentication. The API enforces the same rules on every request.
+    const needs = to.meta.permission;
+    if (!needs) return true;
+
+    const access = usePermissionStore();
+    try {
+        await access.load();
+    } catch {
+        return true; // could not load: let the API decide (it answers 401/403 itself)
+    }
+
+    if (access.canAny(...[].concat(needs))) return true;
+
+    // e.g. a user without "dashboard.view" logs in: send them to the first page they may open.
+    if (to.name === 'dashboard') {
+        const landing = firstAllowedRoute(access);
+        if (landing) return landing;
+    }
+
+    return { name: 'forbidden', query: { from: to.fullPath } };
 });
 
 export default router;

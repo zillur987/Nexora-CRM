@@ -24,5 +24,11 @@ export const userAccessApi = {
     summary: () => http.get('/access/users/summary').then((r) => r.data.data),
     lookups: () => http.get('/access/users/lookups').then((r) => r.data.data),
     get: (id) => http.get(`/access/users/${id}`).then((r) => r.data.data),
-    updateRoles: (id, roleIds) => http.put(`/access/users/${id}/roles`, { role_ids: roleIds }).then((r) => r.data.data),
+    /** Creates a user. Payload: { name, email, password, password_confirmation, role_ids, permission_ids }. */
+    create: (payload) => http.post('/access/users', payload).then((r) => r.data.data),
+    /** Saves roles and, when permissionIds is given, the user's extra permissions (on top of their roles). */
+    updateRoles: (id, roleIds, permissionIds) =>
+        http
+            .put(`/access/users/${id}/roles`, permissionIds === undefined ? { role_ids: roleIds } : { role_ids: roleIds, permission_ids: permissionIds })
+            .then((r) => r.data.data),
 };

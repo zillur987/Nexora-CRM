@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, unref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { userAccessApi } from '@/api/access';
+import { rolesApi, userAccessApi } from '@/api/access';
 import { useColumnVisibility } from '@/composables/useColumnVisibility';
 import { useListQuery } from '@/composables/useListQuery';
 import { usePermission } from '@/composables/usePermission';
@@ -46,12 +46,21 @@ const { filters, items, meta, loading, error, load, goToPage, reset } = useListQ
 
 const summary = ref({ total: 0, with_roles: 0, without_roles: 0, super_admins: 0 });
 const roles = ref([]);
+const groups = ref([]);   // permission matrix for the access form
 
 async function loadSummary() {
     try {
         summary.value = await userAccessApi.summary();
     } catch {
         /* KPIs just show no figures */
+    }
+}
+
+async function loadGroups() {
+    try {
+        groups.value = await rolesApi.permissions();
+    } catch {
+        /* the form still assigns roles; the matrix just stays empty */
     }
 }
 
@@ -129,8 +138,8 @@ const confirmDiscard = ref(false);
 watch(
     () => [route.name, route.params.id],
     ([name, id]) => {
-        drawer.show = name === 'access.users.edit';
-        if (drawer.show) drawer.userId = String(id);
+        drawer.show = name === 'access.users.edit' || name === 'access.users.create';
+        drawer.userId = name === 'access.users.edit' ? String(id) : null;
     },
     { immediate: true },
 );
@@ -179,6 +188,7 @@ onMounted(() => {
 
     loadSummary();
     loadRoles();
+    loadGroups();
 });
 
 onBeforeUnmount(() => {
@@ -194,9 +204,14 @@ onBeforeUnmount(() => {
         <!-- Header -->
         <div class="card-header bg-white d-flex justify-content-between align-items-center px-3 py-3 rounded-top-3">
             <h1 class="access-title mb-0">User Access</h1>
-            <RouterLink v-can="'roles.view'" :to="{ name: 'roles.index' }" class="btn btn-outline-secondary bg-white text-body no-print">
-                <i class="bi bi-shield-lock me-2"></i>Roles &amp; Permissions
-            </RouterLink>
+            <div class="d-flex align-items-center gap-2">
+                <RouterLink v-can="'roles.view'" :to="{ name: 'roles.index' }" class="btn btn-outline-secondary bg-white text-body no-print">
+                    <i class="bi bi-shield-lock me-2"></i>Roles &amp; Permissions
+                </RouterLink>
+                <RouterLink v-can="'users.create'" :to="{ name: 'access.users.create' }" class="btn btn-primary no-print">
+                    <i class="bi bi-person-plus me-2"></i>New user
+                </RouterLink>
+            </div>
         </div>
 
         <!-- KPIs -->
@@ -338,8 +353,8 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Assign roles drawer -->
-    <RecordDrawer :show="drawer.show" title="Manage Roles" @close="requestClose">
-        <UserRolesForm v-if="drawer.userId" ref="formRef" :key="route.fullPath" :user-id="drawer.userId" :roles="roles" @saved="onSaved" @cancel="closeDrawer" />
+    <RecordDrawer :show="drawer.show" :title="drawer.userId ? 'Manage Access' : 'New User'" @close="requestClose">
+        <UserRolesForm v-if="drawer.show" ref="formRef" :key="route.fullPath" :user-id="drawer.userId" :roles="roles" :groups="groups" @saved="onSaved" @cancel="closeDrawer" />
     </RecordDrawer>
 
     <!-- Row actions menu -->
@@ -347,7 +362,7 @@ onBeforeUnmount(() => {
         <ul v-if="menu.user" class="dropdown-menu show row-menu shadow" role="menu" :style="{ top: `${menu.top}px`, right: `${menu.right}px` }">
             <li>
                 <RouterLink class="dropdown-item" role="menuitem" :to="{ name: 'access.users.edit', params: { id: menu.user.id } }" @click="closeMenu">
-                    <i class="bi bi-shield-check me-2"></i>Manage roles
+                    <i class="bi bi-shield-check me-2"></i>Manage access
                 </RouterLink>
             </li>
         </ul>

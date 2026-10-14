@@ -1,0 +1,43 @@
+/* Design tokens: the single source of truth for the theme. */
+:root {
+  /* Colour */
+  --c-ink: #0b0908;
+  --c-ink-soft: #14100e;
+  --c-paper: #ebe9e6;
+  --c-paper-2: #f6f4f1;
+  --c-white: #fff;
+  --c-gold: #c9a36b;
+  --c-muted: rgba(255, 255, 255, .62);
+  --c-line: rgba(255, 255, 255, .22);
+  --c-line-dark: rgba(11, 9, 8, .25);
+  --c-muted-dark: rgba(11, 9, 8, .62);
+
+  /* Header when solid (mega menu open OR banner scrolled past) */
+  --hdr-solid-bg: #14100e;
+  --hdr-solid-fg: #fff;
+
+  /* Typography */
+  --ff-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ff-display: "Cormorant Garamond", Georgia, serif;
+  --tracking-wide: .16em;
+  --tracking-xwide: .3em;
+
+  /* Layout */
+  --gutter: clamp(1rem, 3.6vw, 4.5rem);
+  --bar-max: 1640px;
+  --header-h: 5.5rem;
+  --hero-max-w: 1920px;   /* banner width cap (standard Full HD) */
+  --hero-min-h: 600px;    /* banner height range */
+  --hero-max-h: 900px;
+  --header-h-scrolled: 4.5rem;
+  --z-header: 1030;
+
+  /* Motion */
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --dur: .35s;
+
+  /* Bootstrap overrides */
+  --bs-body-font-family: var(--ff-body);
+  --bs-body-bg: var(--c-ink);
+  --bs-body-color: var(--c-white);
+}

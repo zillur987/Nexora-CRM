@@ -1,0 +1,23 @@
+/** PLACEHOLDER CONTENT: slide names, copy, sizes and prices are demo text. Images: public/assets/img/spot-1..4.jpg (1920x1080). */
+export const spotlightSlides = [
+  { name: 'Palm Grove', grad: 'a', img: 'spot-1.jpg', loc: 'Palm Grove community',
+    lines: ['Palm Grove', 'private villas'],
+    text: 'Private plots, infinity pools and landscaped grounds, a short walk from the beach club.',
+    facts: [['4–6', 'Bedrooms'], ['420–780 m²', 'Built area'], ['From $1.9M', 'Price'], ['Q2 2027', 'Handover']],
+    cta: 'Discover Palm Grove', href: '#project-palm-grove' },
+  { name: 'Skyline', grad: 'c', img: 'spot-2.jpg', loc: 'Skyline District',
+    lines: ['Skyline', 'sky penthouses'],
+    text: 'Full-floor residences with double-height living rooms and uninterrupted city views.',
+    facts: [['3–5', 'Bedrooms'], ['310–640 m²', 'Built area'], ['From $3.4M', 'Price'], ['Ready', 'Status']],
+    cta: 'Discover Skyline', href: '#project-skyline-district' },
+  { name: 'Harbour Point', grad: 'e', img: 'spot-3.jpg', loc: 'Marina Bay',
+    lines: ['Harbour Point', 'on the water'],
+    text: 'Waterfront apartments with private berths, a rooftop pool and a marina promenade below.',
+    facts: [['1–3', 'Bedrooms'], ['68–190 m²', 'Built area'], ['From $420K', 'Price'], ['Q4 2028', 'Handover']],
+    cta: 'Discover Harbour Point', href: '#project-harbour-point' },
+  { name: 'Cedar Ridge', grad: 'b', img: 'spot-4.jpg', loc: 'Cedar Ridge',
+    lines: ['Cedar Ridge', 'above the valley'],
+    text: 'Hillside retreats set among cedar forest, with direct trail access and panoramic terraces.',
+    facts: [['3–5', 'Bedrooms'], ['240–520 m²', 'Built area'], ['From $1.2M', 'Price'], ['Q1 2028', 'Handover']],
+    cta: 'Discover Cedar Ridge', href: '#project-cedar-hills' },
+];

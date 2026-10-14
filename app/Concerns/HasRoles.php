@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Concerns;
 
+use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Collection;
@@ -20,6 +21,12 @@ trait HasRoles
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')->withTimestamps();
+    }
+
+    /** Extra permissions granted directly to this user (on top of their roles). */
+    public function directPermissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'permission_user')->withTimestamps();
     }
 
     /** @return Collection<int, Role> */
@@ -49,6 +56,7 @@ trait HasRoles
 
         return $this->rbacPermissions = $this->loadedRoles()
             ->flatMap(fn (Role $role) => $role->permissions->pluck('name'))
+            ->merge($this->directPermissions()->pluck('permissions.name'))
             ->unique()
             ->values();
     }
@@ -70,10 +78,18 @@ trait HasRoles
         $this->flushRbacCache();
     }
 
+    /** @param array<int,int> $permissionIds */
+    public function syncDirectPermissions(array $permissionIds): void
+    {
+        $this->directPermissions()->sync($permissionIds);
+        $this->flushRbacCache();
+    }
+
     public function flushRbacCache(): void
     {
         $this->rbacRoles = null;
         $this->rbacPermissions = null;
         $this->unsetRelation('roles');
+        $this->unsetRelation('directPermissions');
     }
 }

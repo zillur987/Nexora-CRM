@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Rbac;
 
+use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 final class UserAccessService
@@ -43,8 +47,41 @@ final class UserAccessService
         ];
     }
 
-    /** @param array<int,int> $roleIds */
-    public function syncRoles(Model $user, array $roleIds, $actor): Model
+    /**
+     * Creates a user and gives them roles and (optionally) extra permissions, all or nothing.
+     * The same guards as editing apply: only a Super Admin can hand out Super Admin, and nobody
+     * can grant roles or permissions they do not hold themselves.
+     *
+     * @param array{name:string,email:string,password:string,role_ids?:array<int,int>,permission_ids?:array<int,int>} $data
+     */
+    public function create(array $data, $actor): Model
+    {
+        return DB::transaction(function () use ($data, $actor): Model {
+            $class = $this->userModel();
+            $user = new $class();
+
+            $attributes = [
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+            ];
+            // Admin-created accounts are trusted, so they can sign in even if the app requires verified e-mail.
+            if (Schema::hasColumn($user->getTable(), 'email_verified_at')) $attributes['email_verified_at'] = now();
+
+            $user->forceFill($attributes)->save();
+
+            // Rolls the whole transaction back (no half-created user) if a guard refuses.
+            return $this->syncRoles($user, $data['role_ids'] ?? [], $actor, $data['permission_ids'] ?? null);
+        });
+    }
+
+    /**
+     * Saves a user's roles and, when $permissionIds is not null, their extra (direct) permissions.
+     *
+     * @param array<int,int> $roleIds
+     * @param array<int,int>|null $permissionIds null = leave the user's extra permissions untouched
+     */
+    public function syncRoles(Model $user, array $roleIds, $actor, ?array $permissionIds = null): Model
     {
         $roleIds = collect($roleIds)->map(fn ($id) => (int) $id)->unique()->values();
         $superId = Role::query()->where('slug', config('permissions.super_admin_role'))->value('id');
@@ -78,8 +115,27 @@ final class UserAccessService
             }
         }
 
-        $user->syncRoles($roleIds->all());
+        // Extra permissions: same anti-escalation rule as roles; you can only add or remove what you hold yourself.
+        $extraIds = null;
+        if ($permissionIds !== null) {
+            $extraIds = collect($permissionIds)->map(fn ($id) => (int) $id)->unique()->values();
 
-        return $user->load('roles:id,name,slug');
+            if (! $actor->isSuperAdmin()) {
+                $current = $user->directPermissions()->pluck('permissions.id');
+                $changed = $extraIds->diff($current)->merge($current->diff($extraIds));
+                $mine = Permission::query()->whereIn('name', $actor->permissionNames())->pluck('id');
+
+                if ($changed->diff($mine)->isNotEmpty()) {
+                    throw ValidationException::withMessages(['permission_ids' => 'You can only grant or remove permissions that you hold yourself.']);
+                }
+            }
+        }
+
+        DB::transaction(function () use ($user, $roleIds, $extraIds): void {
+            $user->syncRoles($roleIds->all());
+            if ($extraIds !== null) $user->syncDirectPermissions($extraIds->all());
+        });
+
+        return $user->load('roles:id,name,slug', 'directPermissions:id,name');
     }
 }

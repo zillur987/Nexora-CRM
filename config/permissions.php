@@ -33,8 +33,30 @@ return [
         'companies' => ['label' => 'Companies', 'icon' => 'bi-building', 'actions' => ['view', 'create', 'edit', 'delete', 'export']],
         'deals' => ['label' => 'Deals', 'icon' => 'bi-currency-dollar', 'actions' => ['view', 'create', 'edit', 'delete', 'export']],
         'products' => ['label' => 'Products', 'icon' => 'bi-box-seam', 'actions' => ['view', 'create', 'edit', 'delete', 'export']],
-        'users' => ['label' => 'Users', 'icon' => 'bi-people', 'actions' => ['view', 'edit']],
+        'users' => ['label' => 'Users', 'icon' => 'bi-people', 'actions' => ['view', 'create', 'edit']],
         'roles' => ['label' => 'Roles & permissions', 'icon' => 'bi-shield-lock', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'documents'  => ['label' => 'Documents',      'icon' => 'bi-folder',       'actions' => ['view', 'create', 'edit', 'delete']],
+        'reports'    => ['label' => 'Reports',        'icon' => 'bi-bar-chart',    'actions' => ['view', 'export']],
+        'invoices'   => ['label' => 'Invoices',       'icon' => 'bi-receipt',      'actions' => ['view', 'create', 'edit', 'delete', 'export']],
+        'payments'   => ['label' => 'Payments',       'icon' => 'bi-credit-card',  'actions' => ['view', 'create', 'edit', 'delete']],
+        'expenses'   => ['label' => 'Expenses',       'icon' => 'bi-wallet2',      'actions' => ['view', 'create', 'edit', 'delete']],
+        'tickets'    => ['label' => 'Tickets',        'icon' => 'bi-life-preserver','actions' => ['view', 'create', 'edit', 'delete']],
+        'knowledge'  => ['label' => 'Knowledge base', 'icon' => 'bi-book',         'actions' => ['view', 'create', 'edit', 'delete']],
+        'team'       => ['label' => 'Team members',   'icon' => 'bi-person-badge', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'integrations' => ['label' => 'Integrations', 'icon' => 'bi-plug',         'actions' => ['view', 'edit']],
+        // Real modules
+        'quotes' => ['label' => 'Quotes', 'icon' => 'bi-file-earmark-text', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'pipelines' => ['label' => 'Pipelines', 'icon' => 'bi-kanban-fill', 'actions' => ['view', 'create', 'edit', 'delete']],
+        'tasks' => ['label' => 'Tasks', 'icon' => 'bi-check2-square', 'actions' => ['view', 'create', 'edit', 'delete']],
+
+        // Sidebar pages that are not built yet (view = show the link)
+        'forecasts' => ['label' => 'Forecasts', 'icon' => 'bi-graph-up-arrow', 'actions' => ['view']],
+        'campaigns' => ['label' => 'Campaigns', 'icon' => 'bi-megaphone', 'actions' => ['view']],
+        'email_templates' => ['label' => 'Email templates', 'icon' => 'bi-envelope-paper', 'actions' => ['view']],
+        'segments' => ['label' => 'Segments', 'icon' => 'bi-funnel', 'actions' => ['view']],
+        'calendar' => ['label' => 'Calendar', 'icon' => 'bi-calendar3', 'actions' => ['view']],
+        'meetings' => ['label' => 'Meetings', 'icon' => 'bi-camera-video', 'actions' => ['view']],
+        'notes' => ['label' => 'Notes', 'icon' => 'bi-journal-text', 'actions' => ['view']],
     ],
 
     /*
