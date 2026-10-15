@@ -57,6 +57,22 @@ return [
         'calendar' => ['label' => 'Calendar', 'icon' => 'bi-calendar3', 'actions' => ['view']],
         'meetings' => ['label' => 'Meetings', 'icon' => 'bi-camera-video', 'actions' => ['view']],
         'notes' => ['label' => 'Notes', 'icon' => 'bi-journal-text', 'actions' => ['view']],
+
+        'menus' => [
+            'label'   => 'Header Menu',
+            'icon'    => 'bi-list',
+            'actions' => ['view', 'create', 'edit', 'delete'],
+        ],
+        'banners' => [
+            'label'   => 'Banner Slider',
+            'icon'    => 'bi-images',
+            'actions' => ['view', 'create', 'edit', 'delete'],
+        ],
+        'site_settings' => [
+            'label'   => 'Site Settings',
+            'icon'    => 'bi-gear',
+            'actions' => ['view', 'edit'],
+        ],
     ],
 
     /*

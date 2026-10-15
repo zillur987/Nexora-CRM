@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BannerSlideController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CompanyLookupController;
 use App\Http\Controllers\Api\V1\ContactController;
@@ -11,13 +12,16 @@ use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\DealLookupController;
 use App\Http\Controllers\Api\V1\LeadController;
+use App\Http\Controllers\Api\V1\MenuItemController;
 use App\Http\Controllers\Api\V1\MyAccessController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\PipelineController;
 use App\Http\Controllers\Api\V1\PipelineStageController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\Public\SiteContentController;
 use App\Http\Controllers\Api\V1\QuoteController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\SiteSettingController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\UserAccessController;
 use App\Http\Controllers\Api\V1\UserOptionsController;
@@ -25,6 +29,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::prefix('public')->middleware('throttle:60,1')->group(function () {
+        Route::get('header', [SiteContentController::class, 'header'])->name('public.header');
+        Route::get('banner', [SiteContentController::class, 'banner'])->name('public.banner');
+    });
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
@@ -130,6 +138,32 @@ Route::prefix('v1')->group(function () {
         Route::get('access/users/{user}', [UserAccessController::class, 'show'])->middleware('permission:users.view')->name('access.users.show');
         Route::post('access/users', [UserAccessController::class, 'store'])->middleware('permission:users.create')->name('access.users.store');
         Route::put('access/users/{user}/roles', [UserAccessController::class, 'updateRoles'])->middleware('permission:users.edit')->name('access.users.roles');
+
+        // ---------------------------------------------------------------------------
+        // 2) ADMIN. Place inside your existing /v1 + authentication middleware group.
+        // ---------------------------------------------------------------------------
+
+        // Header menu (tree: link | mega > column > item)
+        Route::get('menus', [MenuItemController::class, 'index'])->middleware('permission:menus.view')->name('menus.index');
+        Route::post('menus', [MenuItemController::class, 'store'])->middleware('permission:menus.create')->name('menus.store');
+        Route::put('menus/reorder', [MenuItemController::class, 'reorder'])->middleware('permission:menus.edit')->name('menus.reorder');   // keep above {menuItem}
+        Route::get('menus/{menuItem}', [MenuItemController::class, 'show'])->middleware('permission:menus.view')->name('menus.show');
+        Route::put('menus/{menuItem}', [MenuItemController::class, 'update'])->middleware('permission:menus.edit')->name('menus.update');
+        Route::patch('menus/{menuItem}/toggle', [MenuItemController::class, 'toggle'])->middleware('permission:menus.edit')->name('menus.toggle');
+        Route::delete('menus/{menuItem}', [MenuItemController::class, 'destroy'])->middleware('permission:menus.delete')->name('menus.destroy');
+
+        // Banner slider
+        Route::get('banner-slides', [BannerSlideController::class, 'index'])->middleware('permission:banners.view')->name('banner-slides.index');
+        Route::post('banner-slides', [BannerSlideController::class, 'store'])->middleware('permission:banners.create')->name('banner-slides.store');
+        Route::put('banner-slides/reorder', [BannerSlideController::class, 'reorder'])->middleware('permission:banners.edit')->name('banner-slides.reorder');   // keep above {bannerSlide}
+        Route::get('banner-slides/{bannerSlide}', [BannerSlideController::class, 'show'])->middleware('permission:banners.view')->name('banner-slides.show');
+        Route::put('banner-slides/{bannerSlide}', [BannerSlideController::class, 'update'])->middleware('permission:banners.edit')->name('banner-slides.update');
+        Route::patch('banner-slides/{bannerSlide}/toggle', [BannerSlideController::class, 'toggle'])->middleware('permission:banners.edit')->name('banner-slides.toggle');
+        Route::delete('banner-slides/{bannerSlide}', [BannerSlideController::class, 'destroy'])->middleware('permission:banners.delete')->name('banner-slides.destroy');
+
+        // Header + banner (hero) settings
+        Route::get('site-settings/{group}', [SiteSettingController::class, 'show'])->whereIn('group', ['header', 'hero'])->middleware('permission:site_settings.view')->name('site-settings.show');
+        Route::put('site-settings/{group}', [SiteSettingController::class, 'update'])->whereIn('group', ['header', 'hero'])->middleware('permission:site_settings.edit')->name('site-settings.update');
         
     });
 

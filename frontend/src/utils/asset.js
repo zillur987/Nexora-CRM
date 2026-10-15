@@ -7,3 +7,8 @@ export const asset = (path) => new URL(`${import.meta.env.BASE_URL}assets/${path
 
 /** Inline-style object that sets the `--img` custom property the theme CSS reads. */
 export const imgVar = (path) => ({ '--img': `url('${asset(path)}')` });
+
+/** Same, for an absolute URL coming from the API. Characters that could break out of url() are percent-encoded. */
+export const safeUrl = (url) => url.replace(/["'()\\\s]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
+export const imgVarUrl = (url) => ({ '--img': url ? `url('${safeUrl(url)}')` : 'none' });
+export const bgUrl = (url) => (url ? { backgroundImage: `url('${safeUrl(url)}')` } : {});

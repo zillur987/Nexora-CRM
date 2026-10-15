@@ -265,6 +265,10 @@ const routes = [
             { path: 'roles/:id', name: 'roles.show', component: RoleList, meta: { permission: 'roles.view' } },
             { path: 'roles/:id/edit', name: 'roles.edit', component: RoleList, meta: { permission: 'roles.edit' } },
 
+            { path: 'cms/menus',     name: 'cms.menus',     component: () => import('@/views/cms/MenuManagerView.vue'),   meta: { permission: 'menus.view' } },
+            { path: 'cms/banners',   name: 'cms.banners',   component: () => import('@/views/cms/BannerSlidesView.vue'),  meta: { permission: 'banners.view' } },
+            { path: 'cms/settings',  name: 'cms.settings',  component: () => import('@/views/cms/SiteSettingsView.vue'),  meta: { permission: 'site_settings.view' } },
+
             // =====================================================
             // USER ACCESS
             // =====================================================

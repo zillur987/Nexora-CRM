@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { spotlightSlides as slides } from '../data/spotlight.js';
-import { asset, imgVar } from '../utils/asset.js';
+import { useBannerContent } from '../composables/useSiteContent.js';
+import { imgVarUrl, bgUrl } from '../utils/asset.js';
 import { prefersReducedMotion as reduce, pad } from '../utils/media.js';
 import { useEventListener } from '../composables/useEventListener.js';
 import { useInView } from '../composables/useInView.js';
@@ -19,15 +19,17 @@ const index = ref(0);
 const hover = ref(false);
 const hidden = ref(false);
 const paused = ref(false);
-const count = slides.length;
+const banner = useBannerContent();   // slides come from the CMS API (Banner Slider)
+const slides = computed(() => banner.data.slides);
+const count = computed(() => slides.value.length);
 
 const inView = useInView(root, { threshold: 0.35 });
 useEventListener(() => document, 'visibilitychange', () => { hidden.value = document.hidden; });
 
-const next = computed(() => slides[(index.value + 1) % count]);
-const live = computed(() => `Slide ${index.value + 1} of ${count}: ${slides[index.value].name}`);
+const next = computed(() => slides.value[(index.value + 1) % count.value] ?? {});
+const live = computed(() => `Slide ${index.value + 1} of ${count.value}: ${slides.value[index.value]?.name ?? ''}`);
 
-const show = (to) => { index.value = (to + count) % count; };
+const show = (to) => { if (count.value) index.value = (to + count.value) % count.value; };
 
 const onKey = (e) => {
   if (e.key === 'ArrowRight') { show(index.value + 1); e.preventDefault(); }
@@ -56,6 +58,7 @@ const onPointerUp = (e) => {
 
 <template>
   <section
+    v-show="count"
     ref="root"
     class="spot"
     :class="{
@@ -88,7 +91,7 @@ const onPointerUp = (e) => {
     >
       <article
         v-for="(s, i) in slides"
-        :key="s.name"
+        :key="s.id"
         class="spot__slide"
         :class="{ 'is-active': i === index }"
         role="group"
@@ -97,15 +100,15 @@ const onPointerUp = (e) => {
         :aria-hidden="String(i !== index)"
         :inert="i !== index"
       >
-        <span class="spot__img ph" :data-grad="s.grad" :style="imgVar(`img/${s.img}`)"></span>
+        <span class="spot__img ph" :data-grad="s.gradient" :style="imgVarUrl(s.image_url)"></span>
         <div class="spot__copy">
-          <p class="spot__loc">{{ s.loc }}</p>
+          <p v-if="s.location" class="spot__loc">{{ s.location }}</p>
           <h3 class="spot__title">
-            <span v-for="(line, n) in s.lines" :key="line" class="spot__ln" :style="{ '--l': n }"><span>{{ line }}</span></span>
+            <span v-for="(line, n) in s.lines" :key="n" class="spot__ln" :style="{ '--l': n }"><span>{{ line }}</span></span>
           </h3>
-          <p class="spot__text">{{ s.text }}</p>
-          <ul class="spot__facts"><li v-for="[b, label] in s.facts" :key="label"><b>{{ b }}</b><span>{{ label }}</span></li></ul>
-          <div class="spot__cta"><a v-magnetic class="btn-gold" :href="s.href">{{ s.cta }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
+          <p v-if="s.text" class="spot__text">{{ s.text }}</p>
+          <ul v-if="s.facts.length" class="spot__facts"><li v-for="fact in s.facts" :key="fact.label"><b>{{ fact.value }}</b><span>{{ fact.label }}</span></li></ul>
+          <div v-if="s.cta_label" class="spot__cta"><a v-magnetic class="btn-gold" :href="s.cta_url">{{ s.cta_label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a></div>
         </div>
       </article>
 
@@ -115,7 +118,7 @@ const onPointerUp = (e) => {
         <div class="spot__tabs" role="tablist" aria-label="Choose a residence">
           <button
             v-for="(s, i) in slides"
-            :key="s.name"
+            :key="s.id"
             class="spot__tab"
             type="button"
             role="tab"
@@ -126,7 +129,7 @@ const onPointerUp = (e) => {
         </div>
         <div class="spot__side">
           <button class="spot__next" type="button" aria-label="Next slide" @click="show(index + 1)">
-            <span class="spot__next-img" :style="{ backgroundImage: `url('${asset(`img/${next.img}`)}')` }"></span>
+            <span class="spot__next-img" :style="bgUrl(next.image_url)"></span>
             <span><small>Next</small><strong>{{ next.name }}</strong></span>
           </button>
           <div class="spot__ctrl">

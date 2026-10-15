@@ -63,6 +63,14 @@ const groups = [
     ],
   },
   {
+    label: 'Website',
+    items: [
+      { name: 'Header menu', icon: 'bi-list', to: '/cms/menus', permission: 'menus.view' },
+      { name: 'Banner slider', icon: 'bi-images', to: '/cms/banners', permission: 'banners.view' },
+      { name: 'Header & banner settings', icon: 'bi-gear', to: '/cms/settings', permission: 'site_settings.view' },
+    ],
+  },
+  {
     label: 'Support',
     items: [
       { name: 'Tickets', icon: 'bi-life-preserver', to: '/tickets', permission: 'tickets.view' },
